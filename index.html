@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1a365d">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>PCMS Mobile</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="assets/logo.png">
+    
+    <!-- Tesseract.js for OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --navy: #1a365d;
+            --navy-light: #2c5282;
+            --gold: #d69e2e;
+            --gold-light: #ecc94b;
+            --teal: #319795;
+            --teal-light: #4fd1c5;
+            --white: #ffffff;
+            --gray-50: #f7fafc;
+            --gray-100: #edf2f7;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e0;
+            --gray-500: #718096;
+            --gray-700: #4a5568;
+            --gray-900: #1a202c;
+            --red: #e53e3e;
+            --green: #38a169;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-900);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+            padding: 16px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(26, 54, 93, 0.3);
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-section img {
+            height: 40px;
+            width: auto;
+        }
+
+        .logo-text {
+            color: var(--white);
+            font-weight: 600;
+            font-size: 18px;
+            letter-spacing: -0.5px;
+        }
+
+        .sync-badge {
+            background: var(--gold);
+            color: var(--navy);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sync-badge.offline {
+            background: var(--gray-300);
+            color: var(--gray-700);
+        }
+
+        .sync-badge.pending {
+            background: var(--gold);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Screen Management */
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Home Screen */
+        .action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .action-card {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 24px 16px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .action-card:hover, .action-card:active {
+            border-color: var(--teal);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(49, 151, 149, 0.15);
+        }
+
+        .action-card.primary {
+            grid-column: span 2;
+            background: linear-gradient(135deg, var(--teal) 0%, var(--teal-light) 100%);
+            color: var(--white);
+        }
+
+        .action-card.primary:hover {
+            border-color: var(--navy);
+        }
+
+        .action-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .action-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+
+        .action-subtitle {
+            font-size: 13px;
+            opacity: 0.8;
+        }
+
+        /* Pending Tests Section */
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        .pending-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .pending-item {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pending-info h4 {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 4px;
+        }
+
+        .pending-info p {
+            font-size: 13px;
+            color: var(--gray-500);
+        }
+
+        .pending-status {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .pending-status.waiting {
+            background: var(--gold-light);
+            color: var(--navy);
+        }
+
+        /* Scanner Screen */
+        .scanner-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: var(--gray-900);
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        #video-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .scanner-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .scan-target {
+            width: 80%;
+            height: 60px;
+            border: 3px solid var(--teal-light);
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .scan-target::before {
+            content: 'Align serial number here';
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--white);
+            font-size: 13px;
+            white-space: nowrap;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--teal-light);
+            animation: scanMove 2s ease-in-out infinite;
+        }
+
+        @keyframes scanMove {
+            0%, 100% { top: 0; }
+            50% { top: calc(100% - 3px); }
+        }
+
+        .scanner-controls {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--teal);
+            color: var(--white);
+            flex: 1;
+        }
+
+        .btn-primary:hover, .btn-primary:active {
+            background: var(--teal-light);
+        }
+
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-700);
+        }
+
+        .btn-secondary:hover, .btn-secondary:active {
+            background: var(--gray-300);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--gray-300);
+            color: var(--gray-700);
+        }
+
+        .btn-gold {
+            background: var(--gold);
+            color: var(--navy);
+        }
+
+        .btn-gold:hover, .btn-gold:active {
+            background: var(--gold-light);
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Manual Entry */
+        .manual-entry {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        .manual-entry p {
+            text-align: center;
+            color: var(--gray-500);
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        /* Form Screen */
+        .form-section {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        .form-section-title {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--navy);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--gray-700);
+            margin-bottom: 6px;
+        }
+
+        .form-label.required::after {
+            content: ' *';
+            color: var(--red);
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid var(--gray-200);
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 15px;
+            transition: border-color 0.2s ease;
+            background: var(--white);
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--teal);
+        }
+
+        .form-input.readonly {
+            background: var(--gray-100);
+            color: var(--gray-700);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-hint {
+            font-size: 12px;
+            color: var(--gray-500);
+            margin-top: 4px;
+        }
+
+        /* Service Type Pills */
+        .service-type-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .service-type-option {
+            padding: 12px;
+            border: 2px solid var(--gray-200);
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .service-type-option:hover {
+            border-color: var(--teal);
+        }
+
+        .service-type-option.selected {
+            border-color: var(--teal);
+            background: rgba(49, 151, 149, 0.1);
+            color: var(--teal);
+        }
+
+        /* Startup Toggle */
+        .startup-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            background: var(--gray-100);
+            border-radius: 10px;
+            margin-top: 12px;
+        }
+
+        .startup-toggle label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 28px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background: var(--gray-300);
+            border-radius: 28px;
+            transition: 0.3s;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            height: 22px;
+            width: 22px;
+            left: 3px;
+            bottom: 3px;
+            background: var(--white);
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: var(--teal);
+        }
+
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(22px);
+        }
+
+        /* Photo Capture */
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .photo-slot {
+            aspect-ratio: 1;
+            border: 2px dashed var(--gray-300);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            overflow: hidden;
+            position: relative;
+            background: var(--gray-100);
+        }
+
+        .photo-slot:hover {
+            border-color: var(--teal);
+        }
+
+        .photo-slot img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .photo-slot .add-icon {
+            font-size: 24px;
+            color: var(--gray-400);
+        }
+
+        .photo-slot .remove-photo {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: var(--red);
+            color: var(--white);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        /* Conditional Fields */
+        .conditional-fields {
+            display: none;
+        }
+
+        .conditional-fields.visible {
+            display: block;
+        }
+
+        /* Match Result Card */
+        .match-card {
+            background: linear-gradient(135deg, var(--teal) 0%, var(--teal-light) 100%);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            color: var(--white);
+        }
+
+        .match-card h3 {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .match-card .serial {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .match-card .details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .match-card .detail-item {
+            background: rgba(255,255,255,0.15);
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+
+        .match-card .detail-label {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+
+        /* Loading States */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(26, 54, 93, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .loading-overlay.visible {
+            display: flex;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255,255,255,0.2);
+            border-top-color: var(--teal-light);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: var(--white);
+            font-size: 16px;
+        }
+
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--gray-900);
+            color: var(--white);
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1001;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .toast.visible {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            background: var(--green);
+        }
+
+        .toast.error {
+            background: var(--red);
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--white);
+            padding: 12px 20px 24px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .bottom-nav .btn {
+            flex: 1;
+            max-width: 200px;
+        }
+
+        /* Spacer for bottom nav */
+        .bottom-spacer {
+            height: 100px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--gray-500);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            font-size: 18px;
+            color: var(--gray-700);
+            margin-bottom: 8px;
+        }
+
+        /* Back button */
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--white);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+            margin: -8px;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-section">
+                <button class="back-btn" id="backBtn" style="display: none;">←</button>
+                <img src="assets/logo.png" alt="PCMS">
+                <span class="logo-text">PCMS Mobile</span>
+            </div>
+            <div class="sync-badge" id="syncBadge">
+                <span>●</span> Online
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="container">
+        <!-- Home Screen -->
+        <section class="screen active" id="homeScreen">
+            <div class="action-grid">
+                <div class="action-card primary" onclick="showScreen('scannerScreen')">
+                    <div class="action-icon">📷</div>
+                    <div class="action-title">Scan Meter</div>
+                    <div class="action-subtitle">Scan serial number to start test</div>
+                </div>
+                <div class="action-card" onclick="showScreen('formScreen'); resetForm();">
+                    <div class="action-icon">📝</div>
+                    <div class="action-title">Manual Entry</div>
+                    <div class="action-subtitle">Enter details manually</div>
+                </div>
+                <div class="action-card" onclick="showScreen('pendingScreen')">
+                    <div class="action-icon">📋</div>
+                    <div class="action-title">Pending</div>
+                    <div class="action-subtitle" id="pendingCount">0 tests waiting</div>
+                </div>
+            </div>
+
+            <div class="section-title">Recent Activity</div>
+            <div id="recentList" class="pending-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <h3>No Recent Tests</h3>
+                    <p>Completed tests will appear here</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Scanner Screen -->
+        <section class="screen" id="scannerScreen">
+            <div class="scanner-container">
+                <video id="video-preview" autoplay playsinline></video>
+                <div class="scanner-overlay">
+                    <div class="scan-target">
+                        <div class="scan-line"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="scanner-controls">
+                <button class="btn btn-primary" id="captureBtn" onclick="captureAndScan()">
+                    📸 Capture & Scan
+                </button>
+            </div>
+
+            <div class="manual-entry">
+                <p>Can't scan? Enter manually:</p>
+                <div class="form-group">
+                    <input type="text" class="form-input" id="manualSerial" placeholder="Enter serial number">
+                </div>
+                <button class="btn btn-outline btn-block" onclick="lookupSerial(document.getElementById('manualSerial').value)">
+                    Search AssetDB
+                </button>
+            </div>
+        </section>
+
+        <!-- Form Screen -->
+        <section class="screen" id="formScreen">
+            <!-- Match Card (shown when asset found) -->
+            <div class="match-card" id="matchCard" style="display: none;">
+                <h3>METER FOUND</h3>
+                <div class="serial" id="matchSerial">-</div>
+                <div class="details">
+                    <div class="detail-item">
+                        <div class="detail-label">Customer</div>
+                        <div id="matchCustomer">-</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Location</div>
+                        <div id="matchLocation">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meter Info Section -->
+            <div class="form-section">
+                <div class="form-section-title">📍 Meter Information</div>
+                
+                <div class="form-group">
+                    <label class="form-label required">Customer</label>
+                    <input type="text" class="form-input" id="formCustomer">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label required">Facility/Location</label>
+                    <input type="text" class="form-input" id="formLocation">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Serial Number</label>
+                    <input type="text" class="form-input" id="formSerial">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Manufacturer/Model</label>
+                    <input type="text" class="form-input" id="formManufacturer">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Water/Wastewater</label>
+                    <select class="form-select" id="formWaterType">
+                        <option value="">Select...</option>
+                        <option value="Water">Water</option>
+                        <option value="Wastewater">Wastewater</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Service Type Section -->
+            <div class="form-section">
+                <div class="form-section-title">🔧 Service Type</div>
+                
+                <div class="service-type-grid">
+                    <div class="service-type-option" data-type="Closed Pipe" onclick="selectServiceType(this)">
+                        Closed Pipe
+                    </div>
+                    <div class="service-type-option" data-type="Open Channel" onclick="selectServiceType(this)">
+                        Open Channel
+                    </div>
+                    <div class="service-type-option" data-type="Loop Test" onclick="selectServiceType(this)">
+                        Loop Test
+                    </div>
+                    <div class="service-type-option" data-type="Chart Recorder" onclick="selectServiceType(this)">
+                        Chart Recorder
+                    </div>
+                </div>
+
+                <div class="startup-toggle">
+                    <label>Startup (New Installation)</label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="formStartup" onchange="toggleStartup()">
+                        <span class="toggle-slider"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Closed Pipe Fields -->
+            <div class="form-section conditional-fields" id="closedPipeFields">
+                <div class="form-section-title">🔵 Closed Pipe Data</div>
+                
+                <div class="form-group">
+                    <label class="form-label">Pipe Material</label>
+                    <select class="form-select" id="formPipeMaterial">
+                        <option value="">Select...</option>
+                        <option value="PVC">PVC</option>
+                        <option value="Ductile Iron">Ductile Iron</option>
+                        <option value="Cast Iron">Cast Iron</option>
+                        <option value="Steel">Steel</option>
+                        <option value="Copper">Copper</option>
+                        <option value="HDPE">HDPE</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Pipe Size (O.D.)</label>
+                    <input type="text" class="form-input" id="formPipeSize" placeholder="e.g., 2.375">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Method of Verification</label>
+                    <select class="form-select" id="formMethodCP">
+                        <option value="">Select...</option>
+                        <option value="Ultrasonic">Ultrasonic</option>
+                        <option value="Electromagnetic">Electromagnetic</option>
+                        <option value="Transit Time">Transit Time</option>
+                    </select>
+                </div>
+
+                <div class="form-group before-field">
+                    <label class="form-label">Flow Rate - Validating Meter (Before)</label>
+                    <input type="number" step="0.1" class="form-input" id="formValFlowBefore" placeholder="GPM">
+                </div>
+
+                <div class="form-group before-field">
+                    <label class="form-label">Customer Meter - Flow Rate (Before)</label>
+                    <input type="number" step="0.1" class="form-input" id="formCusFlowBefore" placeholder="GPM">
+                </div>
+
+                <div class="form-group after-field">
+                    <label class="form-label">Flow Rate - Validating Meter (After)</label>
+                    <input type="number" step="0.1" class="form-input" id="formValFlowAfter" placeholder="GPM">
+                </div>
+
+                <div class="form-group after-field">
+                    <label class="form-label">Customer Meter - Flow Rate (After)</label>
+                    <input type="number" step="0.1" class="form-input" id="formCusFlowAfter" placeholder="GPM">
+                </div>
+            </div>
+
+            <!-- Open Channel Fields -->
+            <div class="form-section conditional-fields" id="openChannelFields">
+                <div class="form-section-title">🌊 Open Channel Data</div>
+                
+                <div class="form-group">
+                    <label class="form-label">Primary Device Type</label>
+                    <select class="form-select" id="formDeviceType">
+                        <option value="">Select...</option>
+                        <option value="(Flume) 3-Inch Parshall">(Flume) 3-Inch Parshall</option>
+                        <option value="(Flume) 6-Inch Parshall">(Flume) 6-Inch Parshall</option>
+                        <option value="(Flume) 9-Inch Parshall">(Flume) 9-Inch Parshall</option>
+                        <option value="(Flume) 12-Inch Parshall">(Flume) 12-Inch Parshall</option>
+                        <option value="(Flume) 18-Inch Parshall">(Flume) 18-Inch Parshall</option>
+                        <option value="(Flume) 24-Inch Parshall">(Flume) 24-Inch Parshall</option>
+                        <option value="(Weir) 90° V-Notch">(Weir) 90° V-Notch</option>
+                        <option value="(Weir) 60° V-Notch">(Weir) 60° V-Notch</option>
+                        <option value="(Weir) Rectangular">(Weir) Rectangular</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Range</label>
+                    <input type="text" class="form-input" id="formRange" placeholder="e.g., 0-10">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Units</label>
+                    <select class="form-select" id="formUnitsOC">
+                        <option value="">Select...</option>
+                        <option value="MGD">MGD</option>
+                        <option value="GPM">GPM</option>
+                        <option value="CFS">CFS</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Method of Verification</label>
+                    <select class="form-select" id="formMethodOC">
+                        <option value="">Select...</option>
+                        <option value="Level Measurement">Level Measurement</option>
+                        <option value="Ultrasonic">Ultrasonic</option>
+                    </select>
+                </div>
+
+                <div class="form-group before-field">
+                    <label class="form-label">Level in Channel (Before)</label>
+                    <input type="number" step="0.01" class="form-input" id="formLevelChannelBefore" placeholder="Inches">
+                </div>
+
+                <div class="form-group before-field">
+                    <label class="form-label">Level on Meter (Before)</label>
+                    <input type="number" step="0.01" class="form-input" id="formLevelMeterBefore" placeholder="Inches">
+                </div>
+
+                <div class="form-group after-field">
+                    <label class="form-label">Level in Channel (After)</label>
+                    <input type="number" step="0.01" class="form-input" id="formLevelChannelAfter" placeholder="Inches">
+                </div>
+
+                <div class="form-group after-field">
+                    <label class="form-label">Level on Meter (After)</label>
+                    <input type="number" step="0.01" class="form-input" id="formLevelMeterAfter" placeholder="Inches">
+                </div>
+            </div>
+
+            <!-- Loop Test Fields -->
+            <div class="form-section conditional-fields" id="loopTestFields">
+                <div class="form-section-title">⚡ Loop Test Data</div>
+                
+                <div class="form-group">
+                    <label class="form-label">Desired Output - Low (mA)</label>
+                    <input type="number" step="0.01" class="form-input" id="formLowDesired" placeholder="4.00">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Measured Output - Low (mA)</label>
+                    <input type="number" step="0.01" class="form-input" id="formLowMeasured" placeholder="mA">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Desired Output - Mid (mA)</label>
+                    <input type="number" step="0.01" class="form-input" id="formMidDesired" placeholder="12.00">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Measured Output - Mid (mA)</label>
+                    <input type="number" step="0.01" class="form-input" id="formMidMeasured" placeholder="mA">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Desired Output - High (mA)</label>
+                    <input type="number" step="0.01" class="form-input" id="formHighDesired" placeholder="20.00">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Measured Output - High (mA)</label>
+                    <input type="number" step="0.01" class="form-input" id="formHighMeasured" placeholder="mA">
+                </div>
+            </div>
+
+            <!-- Chart Recorder Fields -->
+            <div class="form-section conditional-fields" id="chartRecorderFields">
+                <div class="form-section-title">📈 Chart Recorder Data</div>
+                
+                <div class="form-group">
+                    <label class="form-label">Measurement Type</label>
+                    <select class="form-select" id="formMeasurementType">
+                        <option value="">Select...</option>
+                        <option value="Inches">Inches (Level)</option>
+                        <option value="Feet">Feet (Level)</option>
+                        <option value="GPM">GPM (Flow)</option>
+                        <option value="MGD">MGD (Flow)</option>
+                    </select>
+                </div>
+
+                <div class="form-group before-field">
+                    <label class="form-label">Value on Meter (Before)</label>
+                    <input type="number" step="0.01" class="form-input" id="formMeterBefore">
+                </div>
+
+                <div class="form-group before-field">
+                    <label class="form-label">Value on Chart Recorder (Before)</label>
+                    <input type="number" step="0.01" class="form-input" id="formChartBefore">
+                </div>
+
+                <div class="form-group after-field">
+                    <label class="form-label">Value on Meter (After)</label>
+                    <input type="number" step="0.01" class="form-input" id="formMeterAfter">
+                </div>
+
+                <div class="form-group after-field">
+                    <label class="form-label">Value on Chart Recorder (After)</label>
+                    <input type="number" step="0.01" class="form-input" id="formChartAfter">
+                </div>
+            </div>
+
+            <!-- Calibration Notes Section -->
+            <div class="form-section">
+                <div class="form-section-title">📝 Calibration & Notes</div>
+                
+                <div class="form-group">
+                    <label class="form-label">Meter Reading</label>
+                    <input type="text" class="form-input" id="formMeterReading">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Calibration Adjustments</label>
+                    <textarea class="form-textarea" id="formCalibration" placeholder="Describe any adjustments made..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Programming Changes</label>
+                    <textarea class="form-textarea" id="formProgramming" placeholder="Describe any programming changes..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <textarea class="form-textarea" id="formNotes" placeholder="Additional notes..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Tested by</label>
+                    <input type="text" class="form-input" id="formTestedBy" value="Mick Bartlett">
+                </div>
+            </div>
+
+            <!-- Photos Section -->
+            <div class="form-section">
+                <div class="form-section-title">📷 Photos</div>
+                <div class="photo-grid">
+                    <div class="photo-slot" onclick="capturePhoto(0)">
+                        <span class="add-icon">+</span>
+                    </div>
+                    <div class="photo-slot" onclick="capturePhoto(1)">
+                        <span class="add-icon">+</span>
+                    </div>
+                    <div class="photo-slot" onclick="capturePhoto(2)">
+                        <span class="add-icon">+</span>
+                    </div>
+                </div>
+                <p class="form-hint">Tap to capture photos of the installation</p>
+            </div>
+
+            <div class="bottom-spacer"></div>
+        </section>
+
+        <!-- Pending Screen -->
+        <section class="screen" id="pendingScreen">
+            <div class="section-title">Pending Tests (Waiting for Sync)</div>
+            <div id="pendingList" class="pending-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">✅</div>
+                    <h3>All Synced</h3>
+                    <p>No pending tests to upload</p>
+                </div>
+            </div>
+
+            <div style="margin-top: 24px;">
+                <button class="btn btn-gold btn-block" onclick="syncPending()" id="syncBtn">
+                    ↑ Sync All to Cloud
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Bottom Nav for Form -->
+    <div class="bottom-nav" id="formNav" style="display: none;">
+        <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Cancel</button>
+        <button class="btn btn-gold" onclick="saveTest()">💾 Save Test</button>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text" id="loadingText">Processing...</div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Hidden inputs -->
+    <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
+    <canvas id="scanCanvas" style="display:none"></canvas>
+
+    <script>
+        // ============================================
+        // APP STATE
+        // ============================================
+        let currentScreen = 'homeScreen';
+        let selectedServiceType = null;
+        let isStartup = false;
+        let photos = [null, null, null];
+        let currentPhotoIndex = 0;
+        let videoStream = null;
+        let assetDB = [];
+        let pendingTests = [];
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Load AssetDB from localStorage or fetch
+            await loadAssetDB();
+            
+            // Load pending tests from localStorage
+            loadPendingTests();
+            
+            // Check online status
+            updateOnlineStatus();
+            window.addEventListener('online', updateOnlineStatus);
+            window.addEventListener('offline', updateOnlineStatus);
+            
+            // Setup photo input handler
+            document.getElementById('photoInput').addEventListener('change', handlePhotoCapture);
+        });
+
+        // ============================================
+        // ASSET DATABASE
+        // ============================================
+        async function loadAssetDB() {
+            // Try localStorage first
+            const cached = localStorage.getItem('assetDB');
+            if (cached) {
+                assetDB = JSON.parse(cached);
+                console.log(`Loaded ${assetDB.length} assets from cache`);
+                return;
+            }
+            
+            // For now, we'll load from a bundled JSON
+            // In production, this would fetch from Google Sheets
+            try {
+                const response = await fetch('assetdb.json');
+                if (response.ok) {
+                    assetDB = await response.json();
+                    localStorage.setItem('assetDB', JSON.stringify(assetDB));
+                    console.log(`Loaded ${assetDB.length} assets from file`);
+                }
+            } catch (e) {
+                console.log('AssetDB not available, will use manual entry');
+            }
+        }
+
+        function lookupSerial(serial) {
+            if (!serial || serial.trim() === '') {
+                showToast('Please enter a serial number', 'error');
+                return;
+            }
+            
+            serial = serial.trim();
+            const matches = assetDB.filter(a => 
+                a['Serial Number'] && 
+                String(a['Serial Number']).toLowerCase() === serial.toLowerCase()
+            );
+            
+            if (matches.length === 0) {
+                // Check Asset_ID as fallback
+                const idMatches = assetDB.filter(a => 
+                    a['Asset_ID'] && 
+                    String(a['Asset_ID']).toLowerCase() === serial.toLowerCase()
+                );
+                
+                if (idMatches.length === 0) {
+                    showToast('Meter not found in database', 'error');
+                    showScreen('formScreen');
+                    resetForm();
+                    document.getElementById('formSerial').value = serial;
+                    return;
+                }
+                
+                populateFromAsset(idMatches[0]);
+            } else if (matches.length === 1) {
+                populateFromAsset(matches[0]);
+            } else {
+                // Multiple matches - for now, use first one
+                // TODO: Show selection modal
+                populateFromAsset(matches[0]);
+                showToast(`Found ${matches.length} meters with this serial`, 'info');
+            }
+        }
+
+        function populateFromAsset(asset) {
+            showScreen('formScreen');
+            
+            // Show match card
+            const matchCard = document.getElementById('matchCard');
+            matchCard.style.display = 'block';
+            document.getElementById('matchSerial').textContent = asset['Serial Number'] || asset['Asset_ID'] || '-';
+            document.getElementById('matchCustomer').textContent = asset['Customer'] || '-';
+            document.getElementById('matchLocation').textContent = asset['Facility/Location'] || '-';
+            
+            // Populate form fields
+            document.getElementById('formCustomer').value = asset['Customer'] || '';
+            document.getElementById('formLocation').value = asset['Facility/Location'] || '';
+            document.getElementById('formSerial').value = asset['Serial Number'] || '';
+            document.getElementById('formManufacturer').value = asset['Manufacturer/Model'] || '';
+            document.getElementById('formWaterType').value = asset['Water/Wastewater'] || '';
+            
+            // Pre-select service type if known
+            if (asset['Service Type']) {
+                const serviceType = asset['Service Type'];
+                const option = document.querySelector(`.service-type-option[data-type="${serviceType}"]`);
+                if (option) {
+                    selectServiceType(option);
+                }
+            }
+            
+            // Pre-fill service-specific fields
+            if (asset['Pipe Material']) {
+                document.getElementById('formPipeMaterial').value = asset['Pipe Material'];
+            }
+            if (asset['Pipe Size (O.D.)']) {
+                document.getElementById('formPipeSize').value = asset['Pipe Size (O.D.)'];
+            }
+            if (asset['Primary Device Type']) {
+                document.getElementById('formDeviceType').value = asset['Primary Device Type'];
+            }
+            if (asset['Method of Verification']) {
+                document.getElementById('formMethodCP').value = asset['Method of Verification'];
+                document.getElementById('formMethodOC').value = asset['Method of Verification'];
+            }
+            if (asset['Range']) {
+                document.getElementById('formRange').value = asset['Range'];
+            }
+            if (asset['Units']) {
+                document.getElementById('formUnitsOC').value = asset['Units'];
+            }
+            
+            showToast('Meter data loaded!', 'success');
+        }
+
+        // ============================================
+        // SCREEN MANAGEMENT
+        // ============================================
+        function showScreen(screenId) {
+            // Hide all screens
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            
+            // Show target screen
+            document.getElementById(screenId).classList.add('active');
+            currentScreen = screenId;
+            
+            // Handle back button visibility
+            const backBtn = document.getElementById('backBtn');
+            backBtn.style.display = screenId === 'homeScreen' ? 'none' : 'block';
+            
+            // Handle form nav visibility
+            document.getElementById('formNav').style.display = 
+                screenId === 'formScreen' ? 'flex' : 'none';
+            
+            // Handle camera
+            if (screenId === 'scannerScreen') {
+                startCamera();
+            } else {
+                stopCamera();
+            }
+            
+            // Update pending count
+            updatePendingCount();
+        }
+
+        document.getElementById('backBtn').addEventListener('click', () => {
+            if (currentScreen === 'scannerScreen' || currentScreen === 'formScreen') {
+                showScreen('homeScreen');
+            } else if (currentScreen === 'pendingScreen') {
+                showScreen('homeScreen');
+            }
+        });
+
+        // ============================================
+        // CAMERA & OCR SCANNING
+        // ============================================
+        async function startCamera() {
+            try {
+                const video = document.getElementById('video-preview');
+                videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+                });
+                video.srcObject = videoStream;
+            } catch (err) {
+                console.error('Camera error:', err);
+                showToast('Could not access camera', 'error');
+            }
+        }
+
+        function stopCamera() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+            }
+        }
+
+        async function captureAndScan() {
+            const video = document.getElementById('video-preview');
+            const canvas = document.getElementById('scanCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size to video size
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Draw current video frame
+            ctx.drawImage(video, 0, 0);
+            
+            // Get image data
+            const imageData = canvas.toDataURL('image/png');
+            
+            // Show loading
+            showLoading('Scanning serial number...');
+            
+            try {
+                // Use Tesseract for OCR
+                const result = await Tesseract.recognize(imageData, 'eng', {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            document.getElementById('loadingText').textContent = 
+                                `Scanning... ${Math.round(m.progress * 100)}%`;
+                        }
+                    }
+                });
+                
+                hideLoading();
+                
+                // Extract potential serial numbers (alphanumeric sequences)
+                const text = result.data.text;
+                const matches = text.match(/[A-Z0-9]{5,}/gi) || [];
+                
+                if (matches.length > 0) {
+                    // Try the longest match first (most likely to be serial)
+                    const serial = matches.sort((a, b) => b.length - a.length)[0];
+                    showToast(`Found: ${serial}`, 'success');
+                    lookupSerial(serial);
+                } else {
+                    showToast('No serial number detected. Try again or enter manually.', 'error');
+                }
+            } catch (err) {
+                hideLoading();
+                console.error('OCR error:', err);
+                showToast('Scan failed. Please try again.', 'error');
+            }
+        }
+
+        // ============================================
+        // FORM HANDLING
+        // ============================================
+        function resetForm() {
+            // Hide match card
+            document.getElementById('matchCard').style.display = 'none';
+            
+            // Clear all inputs
+            document.querySelectorAll('.form-input, .form-select, .form-textarea').forEach(input => {
+                if (input.id === 'formTestedBy') {
+                    input.value = 'Mick Bartlett'; // Default
+                } else {
+                    input.value = '';
+                }
+            });
+            
+            // Reset service type
+            selectedServiceType = null;
+            document.querySelectorAll('.service-type-option').forEach(o => o.classList.remove('selected'));
+            document.querySelectorAll('.conditional-fields').forEach(f => f.classList.remove('visible'));
+            
+            // Reset startup toggle
+            document.getElementById('formStartup').checked = false;
+            isStartup = false;
+            toggleStartup();
+            
+            // Reset photos
+            photos = [null, null, null];
+            document.querySelectorAll('.photo-slot').forEach((slot, i) => {
+                slot.innerHTML = '<span class="add-icon">+</span>';
+            });
+        }
+
+        function selectServiceType(element) {
+            // Update selection
+            document.querySelectorAll('.service-type-option').forEach(o => o.classList.remove('selected'));
+            element.classList.add('selected');
+            selectedServiceType = element.dataset.type;
+            
+            // Show/hide conditional fields
+            document.querySelectorAll('.conditional-fields').forEach(f => f.classList.remove('visible'));
+            
+            switch (selectedServiceType) {
+                case 'Closed Pipe':
+                    document.getElementById('closedPipeFields').classList.add('visible');
+                    break;
+                case 'Open Channel':
+                    document.getElementById('openChannelFields').classList.add('visible');
+                    break;
+                case 'Loop Test':
+                    document.getElementById('loopTestFields').classList.add('visible');
+                    break;
+                case 'Chart Recorder':
+                    document.getElementById('chartRecorderFields').classList.add('visible');
+                    break;
+            }
+            
+            // Update before/after field visibility based on startup status
+            toggleStartup();
+        }
+
+        function toggleStartup() {
+            isStartup = document.getElementById('formStartup').checked;
+            
+            // Show/hide before fields based on startup status
+            document.querySelectorAll('.before-field').forEach(field => {
+                field.style.display = isStartup ? 'none' : 'block';
+            });
+            
+            // Update after field labels for startup
+            document.querySelectorAll('.after-field label').forEach(label => {
+                if (isStartup) {
+                    label.textContent = label.textContent.replace(' (After)', ' (Initial)');
+                } else {
+                    label.textContent = label.textContent.replace(' (Initial)', ' (After)');
+                }
+            });
+        }
+
+        // ============================================
+        // PHOTO CAPTURE
+        // ============================================
+        function capturePhoto(index) {
+            currentPhotoIndex = index;
+            document.getElementById('photoInput').click();
+        }
+
+        function handlePhotoCapture(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                photos[currentPhotoIndex] = e.target.result;
+                
+                // Update UI
+                const slot = document.querySelectorAll('.photo-slot')[currentPhotoIndex];
+                slot.innerHTML = `
+                    <img src="${e.target.result}" alt="Photo ${currentPhotoIndex + 1}">
+                    <button class="remove-photo" onclick="removePhoto(${currentPhotoIndex}, event)">×</button>
+                `;
+            };
+            reader.readAsDataURL(file);
+            
+            // Reset input so same file can be selected again
+            event.target.value = '';
+        }
+
+        function removePhoto(index, event) {
+            event.stopPropagation();
+            photos[index] = null;
+            const slot = document.querySelectorAll('.photo-slot')[index];
+            slot.innerHTML = '<span class="add-icon">+</span>';
+        }
+
+        // ============================================
+        // SAVE & SYNC
+        // ============================================
+        function saveTest() {
+            // Validate required fields
+            const customer = document.getElementById('formCustomer').value.trim();
+            const location = document.getElementById('formLocation').value.trim();
+            
+            if (!customer || !location) {
+                showToast('Customer and Location are required', 'error');
+                return;
+            }
+            
+            if (!selectedServiceType) {
+                showToast('Please select a service type', 'error');
+                return;
+            }
+            
+            // Build test record
+            const testRecord = {
+                id: Date.now().toString(),
+                timestamp: new Date().toISOString(),
+                serviceType: selectedServiceType,
+                isStartup: isStartup,
+                
+                // Common fields
+                customer: customer,
+                location: location,
+                serialNumber: document.getElementById('formSerial').value.trim(),
+                manufacturer: document.getElementById('formManufacturer').value.trim(),
+                waterType: document.getElementById('formWaterType').value,
+                meterReading: document.getElementById('formMeterReading').value.trim(),
+                calibration: document.getElementById('formCalibration').value.trim(),
+                programming: document.getElementById('formProgramming').value.trim(),
+                notes: document.getElementById('formNotes').value.trim(),
+                testedBy: document.getElementById('formTestedBy').value.trim(),
+                photos: photos.filter(p => p !== null)
+            };
+            
+            // Add service-specific fields
+            switch (selectedServiceType) {
+                case 'Closed Pipe':
+                    testRecord.pipeMaterial = document.getElementById('formPipeMaterial').value;
+                    testRecord.pipeSize = document.getElementById('formPipeSize').value;
+                    testRecord.method = document.getElementById('formMethodCP').value;
+                    testRecord.valFlowBefore = document.getElementById('formValFlowBefore').value;
+                    testRecord.cusFlowBefore = document.getElementById('formCusFlowBefore').value;
+                    testRecord.valFlowAfter = document.getElementById('formValFlowAfter').value;
+                    testRecord.cusFlowAfter = document.getElementById('formCusFlowAfter').value;
+                    break;
+                    
+                case 'Open Channel':
+                    testRecord.deviceType = document.getElementById('formDeviceType').value;
+                    testRecord.range = document.getElementById('formRange').value;
+                    testRecord.units = document.getElementById('formUnitsOC').value;
+                    testRecord.method = document.getElementById('formMethodOC').value;
+                    testRecord.levelChannelBefore = document.getElementById('formLevelChannelBefore').value;
+                    testRecord.levelMeterBefore = document.getElementById('formLevelMeterBefore').value;
+                    testRecord.levelChannelAfter = document.getElementById('formLevelChannelAfter').value;
+                    testRecord.levelMeterAfter = document.getElementById('formLevelMeterAfter').value;
+                    break;
+                    
+                case 'Loop Test':
+                    testRecord.lowDesired = document.getElementById('formLowDesired').value;
+                    testRecord.lowMeasured = document.getElementById('formLowMeasured').value;
+                    testRecord.midDesired = document.getElementById('formMidDesired').value;
+                    testRecord.midMeasured = document.getElementById('formMidMeasured').value;
+                    testRecord.highDesired = document.getElementById('formHighDesired').value;
+                    testRecord.highMeasured = document.getElementById('formHighMeasured').value;
+                    break;
+                    
+                case 'Chart Recorder':
+                    testRecord.measurementType = document.getElementById('formMeasurementType').value;
+                    testRecord.meterBefore = document.getElementById('formMeterBefore').value;
+                    testRecord.chartBefore = document.getElementById('formChartBefore').value;
+                    testRecord.meterAfter = document.getElementById('formMeterAfter').value;
+                    testRecord.chartAfter = document.getElementById('formChartAfter').value;
+                    break;
+            }
+            
+            // Save to pending
+            pendingTests.push(testRecord);
+            savePendingTests();
+            
+            showToast('Test saved! Ready to sync when online.', 'success');
+            showScreen('homeScreen');
+            updatePendingCount();
+        }
+
+        function loadPendingTests() {
+            const stored = localStorage.getItem('pendingTests');
+            if (stored) {
+                pendingTests = JSON.parse(stored);
+            }
+            updatePendingCount();
+            updatePendingList();
+        }
+
+        function savePendingTests() {
+            localStorage.setItem('pendingTests', JSON.stringify(pendingTests));
+            updatePendingCount();
+            updatePendingList();
+        }
+
+        function updatePendingCount() {
+            const count = pendingTests.length;
+            document.getElementById('pendingCount').textContent = 
+                `${count} test${count !== 1 ? 's' : ''} waiting`;
+            
+            // Update sync badge
+            const badge = document.getElementById('syncBadge');
+            if (!navigator.onLine) {
+                badge.className = 'sync-badge offline';
+                badge.innerHTML = '<span>●</span> Offline';
+            } else if (count > 0) {
+                badge.className = 'sync-badge pending';
+                badge.innerHTML = `<span>●</span> ${count} pending`;
+            } else {
+                badge.className = 'sync-badge';
+                badge.innerHTML = '<span>●</span> Online';
+            }
+        }
+
+        function updatePendingList() {
+            const list = document.getElementById('pendingList');
+            
+            if (pendingTests.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">✅</div>
+                        <h3>All Synced</h3>
+                        <p>No pending tests to upload</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            list.innerHTML = pendingTests.map(test => `
+                <div class="pending-item">
+                    <div class="pending-info">
+                        <h4>${test.customer}</h4>
+                        <p>${test.location} • ${test.serviceType}${test.isStartup ? ' (Startup)' : ''}</p>
+                    </div>
+                    <span class="pending-status waiting">Waiting</span>
+                </div>
+            `).join('');
+        }
+
+        const CLOUD_FUNCTION_URL = 'https://generate-certificate-980517620937.us-central1.run.app';
+
+        async function syncPending() {
+            if (pendingTests.length === 0) {
+                showToast('No tests to sync', 'info');
+                return;
+            }
+            
+            if (!navigator.onLine) {
+                showToast('No internet connection', 'error');
+                return;
+            }
+            
+            showLoading('Syncing to cloud...');
+            
+            let successCount = 0;
+            let failCount = 0;
+            const failedTests = [];
+            
+            for (let i = 0; i < pendingTests.length; i++) {
+                const test = pendingTests[i];
+                document.getElementById('loadingText').textContent = `Generating certificate ${i + 1} of ${pendingTests.length}...`;
+                
+                try {
+                    const response = await fetch(CLOUD_FUNCTION_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(test)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok && result.success) {
+                        successCount++;
+                        console.log(`Certificate created: ${result.dropbox_path}`);
+                    } else {
+                        failCount++;
+                        failedTests.push(test);
+                        console.error(`Failed to create certificate: ${result.error}`);
+                    }
+                } catch (error) {
+                    failCount++;
+                    failedTests.push(test);
+                    console.error(`Error syncing test: ${error}`);
+                }
+            }
+            
+            // Keep only failed tests in pending
+            pendingTests = failedTests;
+            savePendingTests();
+            
+            hideLoading();
+            
+            if (failCount === 0) {
+                showToast(`${successCount} certificate${successCount !== 1 ? 's' : ''} created successfully!`, 'success');
+            } else if (successCount === 0) {
+                showToast(`Failed to create certificates. Check your connection.`, 'error');
+            } else {
+                showToast(`${successCount} created, ${failCount} failed. Retry failed ones later.`, 'info');
+            }
+            
+            updatePendingList();
+        }
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        function updateOnlineStatus() {
+            updatePendingCount();
+        }
+
+        function showLoading(text = 'Processing...') {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loadingOverlay').classList.add('visible');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('visible');
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} visible`;
+            
+            setTimeout(() => {
+                toast.classList.remove('visible');
+            }, 3000);
+        }
+
+        // ============================================
+        // SERVICE WORKER REGISTRATION
+        // ============================================
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('Service Worker registered'))
+                .catch(err => console.log('Service Worker registration failed:', err));
+        }
+    </script>
+</body>
+</html>
