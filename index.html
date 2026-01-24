@@ -763,7 +763,7 @@
         <div class="header-content">
             <div class="logo-section">
                 <button class="back-btn" id="backBtn" style="display: none;">←</button>
-                <img src="logo.png" alt="PCMS">
+                <img src="__PCMS_Logo_PNG.png__" alt="PCMS">
                 <span class="logo-text">PCMS Mobile</span>
             </div>
             <div class="sync-badge" id="syncBadge">
@@ -815,10 +815,23 @@
                 </div>
             </div>
 
-            <div class="scanner-controls">
+            <!-- Scan Result Preview (hidden until scan) -->
+            <div id="scanResult" style="display: none; background: var(--white); margin: 16px; padding: 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <p style="font-size: 12px; color: var(--gray-500); margin-bottom: 8px;">Detected Serial Number:</p>
+                <input type="text" class="form-input" id="detectedSerial" style="font-size: 18px; font-weight: 600; text-align: center; font-family: 'JetBrains Mono', monospace;">
+                <div style="display: flex; gap: 8px; margin-top: 12px;">
+                    <button class="btn btn-outline" onclick="retryScan()" style="flex: 1;">🔄 Retry</button>
+                    <button class="btn btn-primary" onclick="acceptSerial()" style="flex: 1;">✓ Accept</button>
+                </div>
+            </div>
+
+            <div class="scanner-controls" id="scannerControls">
                 <button class="btn btn-primary" id="captureBtn" onclick="captureAndScan()">
                     📸 Capture & Scan
                 </button>
+                <p style="color: var(--gray-500); font-size: 12px; margin-top: 8px; text-align: center;">
+                    Hold camera steady, ensure good lighting
+                </p>
             </div>
 
             <div class="manual-entry">
@@ -1388,9 +1401,17 @@
             try {
                 const video = document.getElementById('video-preview');
                 videoStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+                    video: { 
+                        facingMode: 'environment', 
+                        width: { ideal: 1920 }, 
+                        height: { ideal: 1080 },
+                        focusMode: 'continuous'
+                    }
                 });
                 video.srcObject = videoStream;
+                // Reset scan result
+                document.getElementById('scanResult').style.display = 'none';
+                document.getElementById('scannerControls').style.display = 'block';
             } catch (err) {
                 console.error('Camera error:', err);
                 showToast('Could not access camera', 'error');
@@ -1402,6 +1423,32 @@
                 videoStream.getTracks().forEach(track => track.stop());
                 videoStream = null;
             }
+        }
+
+        function preprocessImage(canvas, ctx) {
+            // Get image data
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            
+            // Convert to grayscale and increase contrast
+            for (let i = 0; i < data.length; i += 4) {
+                // Grayscale
+                const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                
+                // Increase contrast
+                const contrast = 1.5;
+                const factor = (259 * (contrast * 100 + 255)) / (255 * (259 - contrast * 100));
+                const newVal = Math.min(255, Math.max(0, factor * (avg - 128) + 128));
+                
+                // Threshold to black/white for cleaner OCR
+                const threshold = newVal > 140 ? 255 : 0;
+                
+                data[i] = threshold;
+                data[i + 1] = threshold;
+                data[i + 2] = threshold;
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
         }
 
         async function captureAndScan() {
@@ -1416,6 +1463,9 @@
             // Draw current video frame
             ctx.drawImage(video, 0, 0);
             
+            // Preprocess image for better OCR
+            preprocessImage(canvas, ctx);
+            
             // Get image data
             const imageData = canvas.toDataURL('image/png');
             
@@ -1423,27 +1473,34 @@
             showLoading('Scanning serial number...');
             
             try {
-                // Use Tesseract for OCR
+                // Use Tesseract for OCR with optimized settings
                 const result = await Tesseract.recognize(imageData, 'eng', {
                     logger: m => {
                         if (m.status === 'recognizing text') {
                             document.getElementById('loadingText').textContent = 
                                 `Scanning... ${Math.round(m.progress * 100)}%`;
                         }
-                    }
+                    },
+                    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-',
+                    tessedit_pageseg_mode: '7' // Single line mode
                 });
                 
                 hideLoading();
                 
                 // Extract potential serial numbers (alphanumeric sequences)
-                const text = result.data.text;
-                const matches = text.match(/[A-Z0-9]{5,}/gi) || [];
+                const text = result.data.text.toUpperCase().replace(/[^A-Z0-9\s-]/g, '');
+                const matches = text.match(/[A-Z0-9]{4,}/gi) || [];
                 
                 if (matches.length > 0) {
-                    // Try the longest match first (most likely to be serial)
+                    // Sort by length and pick longest (most likely serial)
                     const serial = matches.sort((a, b) => b.length - a.length)[0];
+                    
+                    // Show result for confirmation
+                    document.getElementById('detectedSerial').value = serial;
+                    document.getElementById('scanResult').style.display = 'block';
+                    document.getElementById('scannerControls').style.display = 'none';
+                    
                     showToast(`Found: ${serial}`, 'success');
-                    lookupSerial(serial);
                 } else {
                     showToast('No serial number detected. Try again or enter manually.', 'error');
                 }
@@ -1451,6 +1508,21 @@
                 hideLoading();
                 console.error('OCR error:', err);
                 showToast('Scan failed. Please try again.', 'error');
+            }
+        }
+
+        function retryScan() {
+            document.getElementById('scanResult').style.display = 'none';
+            document.getElementById('scannerControls').style.display = 'block';
+            document.getElementById('detectedSerial').value = '';
+        }
+
+        function acceptSerial() {
+            const serial = document.getElementById('detectedSerial').value.trim();
+            if (serial) {
+                lookupSerial(serial);
+            } else {
+                showToast('Please enter a serial number', 'error');
             }
         }
 
