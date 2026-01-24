@@ -865,6 +865,14 @@
                 </div>
 
                 <div class="form-group">
+                    <label class="form-label">GPS Coordinates</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" class="form-input" id="formGPS" placeholder="Tap button to capture" readonly style="flex: 1;">
+                        <button type="button" class="btn btn-secondary" onclick="captureGPS()" style="padding: 12px 16px;">📍</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
                     <label class="form-label">Serial Number</label>
                     <input type="text" class="form-input" id="formSerial">
                 </div>
@@ -1562,6 +1570,50 @@
         }
 
         // ============================================
+        // GPS CAPTURE
+        // ============================================
+        function captureGPS() {
+            const gpsInput = document.getElementById('formGPS');
+            
+            if (!navigator.geolocation) {
+                showToast('GPS not supported on this device', 'error');
+                return;
+            }
+            
+            gpsInput.value = 'Getting location...';
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude.toFixed(6);
+                    const lng = position.coords.longitude.toFixed(6);
+                    gpsInput.value = `${lat}, ${lng}`;
+                    showToast('GPS captured!', 'success');
+                },
+                (error) => {
+                    gpsInput.value = '';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            showToast('GPS permission denied', 'error');
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            showToast('GPS unavailable', 'error');
+                            break;
+                        case error.TIMEOUT:
+                            showToast('GPS timeout', 'error');
+                            break;
+                        default:
+                            showToast('GPS error', 'error');
+                    }
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 60000
+                }
+            );
+        }
+
+        // ============================================
         // SAVE & SYNC
         // ============================================
         function saveTest() {
@@ -1589,6 +1641,7 @@
                 // Common fields
                 customer: customer,
                 location: location,
+                gpsCoordinates: document.getElementById('formGPS').value.trim(),
                 serialNumber: document.getElementById('formSerial').value.trim(),
                 manufacturer: document.getElementById('formManufacturer').value.trim(),
                 waterType: document.getElementById('formWaterType').value,
