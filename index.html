@@ -1835,6 +1835,7 @@
         }
 
         const CLOUD_FUNCTION_URL = 'https://generate-certificate-980517620937.us-central1.run.app';
+        const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxakHtOejp8OTWusxTQAwUfAxixCoECr9uRppFhnTd1EDjZV2qdhOCPmyZicbBDz7F5/exec';
 
         async function syncPending() {
             if (pendingTests.length === 0) {
@@ -1855,31 +1856,51 @@
             
             for (let i = 0; i < pendingTests.length; i++) {
                 const test = pendingTests[i];
-                document.getElementById('loadingText').textContent = `Generating certificate ${i + 1} of ${pendingTests.length}...`;
+                document.getElementById('loadingText').textContent = `Syncing ${i + 1} of ${pendingTests.length}...`;
                 
+                let pdfSuccess = false;
+                let sheetSuccess = false;
+                
+                // 1. Generate PDF certificate
                 try {
-                    const response = await fetch(CLOUD_FUNCTION_URL, {
+                    const pdfResponse = await fetch(CLOUD_FUNCTION_URL, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(test)
                     });
                     
-                    const result = await response.json();
+                    const pdfResult = await pdfResponse.json();
                     
-                    if (response.ok && result.success) {
-                        successCount++;
-                        console.log(`Certificate created: ${result.dropbox_path}`);
+                    if (pdfResponse.ok && pdfResult.success) {
+                        pdfSuccess = true;
+                        console.log(`Certificate created: ${pdfResult.dropbox_path}`);
                     } else {
-                        failCount++;
-                        failedTests.push(test);
-                        console.error(`Failed to create certificate: ${result.error}`);
+                        console.error(`Failed to create certificate: ${pdfResult.error}`);
                     }
                 } catch (error) {
+                    console.error(`Error creating PDF: ${error}`);
+                }
+                
+                // 2. Sync to Google Sheets
+                try {
+                    const sheetResponse = await fetch(GOOGLE_SHEET_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(test)
+                    });
+                    sheetSuccess = true;
+                    console.log('Synced to Google Sheets');
+                } catch (error) {
+                    console.error(`Error syncing to sheet: ${error}`);
+                }
+                
+                // Consider success if either worked
+                if (pdfSuccess || sheetSuccess) {
+                    successCount++;
+                } else {
                     failCount++;
                     failedTests.push(test);
-                    console.error(`Error syncing test: ${error}`);
                 }
             }
             
@@ -1890,11 +1911,11 @@
             hideLoading();
             
             if (failCount === 0) {
-                showToast(`${successCount} certificate${successCount !== 1 ? 's' : ''} created successfully!`, 'success');
+                showToast(`${successCount} test${successCount !== 1 ? 's' : ''} synced successfully!`, 'success');
             } else if (successCount === 0) {
-                showToast(`Failed to create certificates. Check your connection.`, 'error');
+                showToast(`Sync failed. Check your connection.`, 'error');
             } else {
-                showToast(`${successCount} created, ${failCount} failed. Retry failed ones later.`, 'info');
+                showToast(`${successCount} synced, ${failCount} failed. Retry later.`, 'info');
             }
             
             updatePendingList();
