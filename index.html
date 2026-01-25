@@ -1881,15 +1881,34 @@
                     console.error(`Error creating PDF: ${error}`);
                 }
                 
-                // 2. Sync to Google Sheets using form submission
+                // 2. Sync to Google Sheets using hidden iframe form
                 try {
-                    const formData = new URLSearchParams();
-                    formData.append('data', JSON.stringify(test));
+                    // Create a hidden iframe and form
+                    const iframe = document.createElement('iframe');
+                    iframe.name = 'sheetFrame' + i;
+                    iframe.style.display = 'none';
+                    document.body.appendChild(iframe);
                     
-                    await fetch(GOOGLE_SHEET_URL, {
-                        method: 'POST',
-                        body: formData
-                    });
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = GOOGLE_SHEET_URL;
+                    form.target = iframe.name;
+                    
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'data';
+                    input.value = JSON.stringify(test);
+                    form.appendChild(input);
+                    
+                    document.body.appendChild(form);
+                    form.submit();
+                    
+                    // Clean up after a delay
+                    setTimeout(() => {
+                        document.body.removeChild(form);
+                        document.body.removeChild(iframe);
+                    }, 2000);
+                    
                     sheetSuccess = true;
                     console.log('Synced to Google Sheets');
                 } catch (error) {
