@@ -1835,7 +1835,7 @@
         }
 
         const CLOUD_FUNCTION_URL = 'https://generate-certificate-980517620937.us-central1.run.app';
-        const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbw1WBQSNrBRtKo0bnah6t97p-8woFEEDG81SG36JQROEi-abRmcmUkLrvEQcgUOMw/exec';
+        const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbwMoNV9o9jeiL44VOkPPQzjBvj4_Y60TWydwjKL92MiGc6fXyfASMa7KGq5gbET-Jy6/exec';
 
         async function syncPending() {
             if (pendingTests.length === 0) {
@@ -1881,13 +1881,14 @@
                     console.error(`Error creating PDF: ${error}`);
                 }
                 
-                // 2. Sync to Google Sheets
+                // 2. Sync to Google Sheets using form submission
                 try {
-                    const sheetResponse = await fetch(GOOGLE_SHEET_URL, {
+                    const formData = new URLSearchParams();
+                    formData.append('data', JSON.stringify(test));
+                    
+                    await fetch(GOOGLE_SHEET_URL, {
                         method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(test)
+                        body: formData
                     });
                     sheetSuccess = true;
                     console.log('Synced to Google Sheets');
