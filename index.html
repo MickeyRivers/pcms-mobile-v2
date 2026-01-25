@@ -1247,7 +1247,23 @@
         // ASSET DATABASE
         // ============================================
         async function loadAssetDB() {
-            // Try localStorage first
+            const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbx6tFxyvqOWCIzI1S0hmQYBHwzVsXah5Rz35Hf4zqk9nIyL8O0L0hJejCzxrBRCkMakuA/exec';
+            
+            // Try to fetch fresh data from Google Sheets
+            try {
+                const response = await fetch(ASSETDB_URL);
+                if (response.ok) {
+                    assetDB = await response.json();
+                    localStorage.setItem('assetDB', JSON.stringify(assetDB));
+                    localStorage.setItem('assetDB_updated', new Date().toISOString());
+                    console.log(`Loaded ${assetDB.length} assets from Google Sheets`);
+                    return;
+                }
+            } catch (e) {
+                console.log('Could not fetch from Google Sheets, trying cache...');
+            }
+            
+            // Fall back to localStorage cache
             const cached = localStorage.getItem('assetDB');
             if (cached) {
                 assetDB = JSON.parse(cached);
@@ -1255,8 +1271,7 @@
                 return;
             }
             
-            // For now, we'll load from a bundled JSON
-            // In production, this would fetch from Google Sheets
+            // Last resort - try static JSON file
             try {
                 const response = await fetch('assetdb.json');
                 if (response.ok) {
