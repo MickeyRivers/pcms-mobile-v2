@@ -837,8 +837,9 @@
             <div class="manual-entry">
                 <p>Can't scan? Enter manually:</p>
                 <div class="form-group">
-                    <input type="text" class="form-input" id="manualSerial" placeholder="Enter serial number">
+                    <input type="text" class="form-input" id="manualSerial" placeholder="Enter serial number" oninput="autoSearchSerial(this.value)">
                 </div>
+                <div id="serialSuggestions" style="display: none; max-height: 200px; overflow-y: auto; background: var(--white); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-top: -8px; margin-bottom: 12px;"></div>
                 <button class="btn btn-outline btn-block" onclick="lookupSerial(document.getElementById('manualSerial').value)">
                     Search AssetDB
                 </button>
@@ -1266,6 +1267,52 @@
             } catch (e) {
                 console.log('AssetDB not available, will use manual entry');
             }
+        }
+
+        let searchTimeout;
+        function autoSearchSerial(value) {
+            // Clear previous timeout
+            clearTimeout(searchTimeout);
+            
+            const suggestionsDiv = document.getElementById('serialSuggestions');
+            
+            if (!value || value.trim().length < 2) {
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+            
+            // Debounce - wait 300ms after typing stops
+            searchTimeout = setTimeout(() => {
+                const searchTerm = value.trim().toLowerCase();
+                
+                // Search by serial number or Asset_ID
+                const matches = assetDB.filter(a => {
+                    const serial = String(a['Serial Number'] || '').toLowerCase();
+                    const assetId = String(a['Asset_ID'] || '').toLowerCase();
+                    return serial.includes(searchTerm) || assetId.includes(searchTerm);
+                }).slice(0, 5); // Limit to 5 results
+                
+                if (matches.length === 0) {
+                    suggestionsDiv.style.display = 'none';
+                    return;
+                }
+                
+                suggestionsDiv.innerHTML = matches.map(a => `
+                    <div style="padding: 12px; border-bottom: 1px solid var(--gray-100); cursor: pointer;" 
+                         onclick="selectSuggestion('${a['Serial Number'] || a['Asset_ID']}')">
+                        <div style="font-weight: 600; font-family: 'JetBrains Mono', monospace;">${a['Serial Number'] || a['Asset_ID']}</div>
+                        <div style="font-size: 12px; color: var(--gray-500);">${a['Customer'] || ''} - ${a['Facility/Location'] || ''}</div>
+                    </div>
+                `).join('');
+                
+                suggestionsDiv.style.display = 'block';
+            }, 300);
+        }
+        
+        function selectSuggestion(serial) {
+            document.getElementById('manualSerial').value = serial;
+            document.getElementById('serialSuggestions').style.display = 'none';
+            lookupSerial(serial);
         }
 
         function lookupSerial(serial) {
