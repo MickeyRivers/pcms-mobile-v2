@@ -1247,7 +1247,7 @@
         // ASSET DATABASE
         // ============================================
         async function loadAssetDB() {
-            const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbx6tFxyvqOWCIzI1S0hmQYBHwzVsXah5Rz35Hf4zqk9nIyL8O0L0hJejCzxrBRCkMakuA/exec';
+            const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbxFWRMkCVAZ4bon1q6Rw4swKxPZ2wESV0KyH_HCYvk5_DcgVIW7KYiqo9P9HcODqgMfaA/exec';
             
             // Try to fetch fresh data from Google Sheets
             try {
@@ -1897,7 +1897,7 @@
         }
 
         const CLOUD_FUNCTION_URL = 'https://generate-certificate-980517620937.us-central1.run.app';
-        const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbz8-6UQM3NWfVe1I6Xlx19RKuk007M_-XQiP04hRrQVCPN5ajzI-QbSzYkhsm99HQnc/exec';
+        const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzuiCNm54Nr3whYccOME2ZeMTXjUQn9fs47CZDPfFtzL4J1tdt1oXAvyyZwsnQj0KKn/exec';
 
         async function syncPending() {
             if (pendingTests.length === 0) {
@@ -1943,8 +1943,12 @@
                     console.error(`Error creating PDF: ${error}`);
                 }
                 
-                // 2. Sync to Google Sheets using hidden iframe form
+                // 2. Sync to Google Sheets using hidden iframe form (without photos - too large)
                 try {
+                    // Create a copy of test without photos for Google Sheets
+                    const sheetData = {...test};
+                    delete sheetData.photos;  // Remove photos - too large for sheets
+                    
                     // Create a hidden iframe and form
                     const iframe = document.createElement('iframe');
                     iframe.name = 'sheetFrame' + i;
@@ -1959,7 +1963,7 @@
                     const input = document.createElement('input');
                     input.type = 'hidden';
                     input.name = 'data';
-                    input.value = JSON.stringify(test);
+                    input.value = JSON.stringify(sheetData);
                     form.appendChild(input);
                     
                     document.body.appendChild(form);
@@ -1975,6 +1979,43 @@
                     console.log('Synced to Google Sheets');
                 } catch (error) {
                     console.error(`Error syncing to sheet: ${error}`);
+                }
+                
+                // 3. Update AssetDB with any new field data (if serial exists in DB)
+                if (test.serialNumber) {
+                    try {
+                        // Create a copy without photos
+                        const assetData = {...test};
+                        delete assetData.photos;
+                        
+                        const updateIframe = document.createElement('iframe');
+                        updateIframe.name = 'assetFrame' + i;
+                        updateIframe.style.display = 'none';
+                        document.body.appendChild(updateIframe);
+                        
+                        const updateForm = document.createElement('form');
+                        updateForm.method = 'POST';
+                        updateForm.action = ASSETDB_URL;
+                        updateForm.target = updateIframe.name;
+                        
+                        const updateInput = document.createElement('input');
+                        updateInput.type = 'hidden';
+                        updateInput.name = 'data';
+                        updateInput.value = JSON.stringify(assetData);
+                        updateForm.appendChild(updateInput);
+                        
+                        document.body.appendChild(updateForm);
+                        updateForm.submit();
+                        
+                        setTimeout(() => {
+                            document.body.removeChild(updateForm);
+                            document.body.removeChild(updateIframe);
+                        }, 2000);
+                        
+                        console.log('AssetDB update sent');
+                    } catch (error) {
+                        console.error(`Error updating AssetDB: ${error}`);
+                    }
                 }
                 
                 // Consider success if either worked
