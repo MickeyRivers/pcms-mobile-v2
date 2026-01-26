@@ -10,8 +10,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="assets/logo.png">
     
-    <!-- Tesseract.js for OCR -->
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <!-- OCR powered by OCR.space API -->
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1513,6 +1512,9 @@
             ctx.putImageData(imageData, 0, 0);
         }
 
+        const OCR_API_KEY = 'K87826259088957';
+        const OCR_API_URL = 'https://api.ocr.space/parse/image';
+
         async function captureAndScan() {
             const video = document.getElementById('video-preview');
             const canvas = document.getElementById('scanCanvas');
@@ -1525,55 +1527,152 @@
             // Draw current video frame
             ctx.drawImage(video, 0, 0);
             
-            // Preprocess image for better OCR
-            preprocessImage(canvas, ctx);
-            
             // Get image data
-            const imageData = canvas.toDataURL('image/png');
+            const imageData = canvas.toDataURL('image/jpeg', 0.9);
             
             // Show loading
-            showLoading('Scanning serial number...');
+            showLoading('Uploading image...');
+            
+            let allMatches = new Set();
             
             try {
-                // Use Tesseract for OCR with optimized settings
-                const result = await Tesseract.recognize(imageData, 'eng', {
-                    logger: m => {
-                        if (m.status === 'recognizing text') {
-                            document.getElementById('loadingText').textContent = 
-                                `Scanning... ${Math.round(m.progress * 100)}%`;
-                        }
-                    },
-                    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-',
-                    tessedit_pageseg_mode: '7' // Single line mode
+                // OCR.space API call - Engine 2 (better for photos)
+                const formData = new FormData();
+                formData.append('base64Image', imageData);
+                formData.append('apikey', OCR_API_KEY);
+                formData.append('language', 'eng');
+                formData.append('isOverlayRequired', 'false');
+                formData.append('scale', 'true');
+                formData.append('OCREngine', '2');
+                
+                document.getElementById('loadingText').textContent = 'Scanning with Engine 2...';
+                
+                let response = await fetch(OCR_API_URL, {
+                    method: 'POST',
+                    body: formData
                 });
+                
+                let result = await response.json();
+                
+                if (result.ParsedResults && result.ParsedResults[0]) {
+                    extractOCRMatches(result.ParsedResults[0].ParsedText || '', allMatches);
+                }
+                
+                // Try Engine 1 as well
+                document.getElementById('loadingText').textContent = 'Scanning with Engine 1...';
+                formData.set('OCREngine', '1');
+                
+                response = await fetch(OCR_API_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                result = await response.json();
+                
+                if (result.ParsedResults && result.ParsedResults[0]) {
+                    extractOCRMatches(result.ParsedResults[0].ParsedText || '', allMatches);
+                }
                 
                 hideLoading();
                 
-                // Extract potential serial numbers (alphanumeric sequences)
-                const text = result.data.text.toUpperCase().replace(/[^A-Z0-9\s-]/g, '');
-                const matches = text.match(/[A-Z0-9]{4,}/gi) || [];
+                // Convert to array and sort
+                const combined = Array.from(allMatches);
+                sortOCRResults(combined);
                 
-                if (matches.length > 0) {
-                    // Sort by length and pick longest (most likely serial)
-                    const serial = matches.sort((a, b) => b.length - a.length)[0];
-                    
-                    // Show result for confirmation
-                    document.getElementById('detectedSerial').value = serial;
-                    document.getElementById('scanResult').style.display = 'block';
-                    document.getElementById('scannerControls').style.display = 'none';
-                    
-                    showToast(`Found: ${serial}`, 'success');
+                if (combined.length > 0) {
+                    // Show results for selection
+                    displayOCRResults(combined);
                 } else {
-                    showToast('No serial number detected. Try again or enter manually.', 'error');
+                    showToast('No text detected. Try again or enter manually.', 'error');
                 }
+                
             } catch (err) {
                 hideLoading();
                 console.error('OCR error:', err);
                 showToast('Scan failed. Please try again.', 'error');
             }
         }
+        
+        function extractOCRMatches(text, matchSet) {
+            // Clean up common OCR errors
+            let cleaned = text
+                .replace(/[oO]/g, '0')
+                .replace(/[lI]/g, '1')
+                .replace(/[sS](?=\d)/g, '5')
+                .replace(/[zZ]/g, '2')
+                .replace(/[bB](?=\d)/g, '8');
+            
+            // Get pure numbers (5+ digits) - likely serial numbers
+            const pureNumbers = cleaned.match(/\b\d{5,}\b/g) || [];
+            pureNumbers.forEach(n => matchSet.add(n));
+            
+            // Get alphanumeric (4+ chars)
+            const alphanumeric = text.match(/\b[A-Z0-9][A-Z0-9\-]{3,}[A-Z0-9]\b/gi) || [];
+            alphanumeric.forEach(n => matchSet.add(n.toUpperCase()));
+            
+            // Find numbers with spaces
+            const spacedNumbers = cleaned.match(/\b\d[\d\s]{4,}\d\b/g) || [];
+            spacedNumbers.forEach(n => matchSet.add(n.replace(/\s/g, '')));
+        }
+        
+        function sortOCRResults(items) {
+            items.sort((a, b) => {
+                // Pure numbers 6-10 digits first
+                const aIsPureNum = /^\d{6,10}$/.test(a);
+                const bIsPureNum = /^\d{6,10}$/.test(b);
+                if (aIsPureNum && !bIsPureNum) return -1;
+                if (!aIsPureNum && bIsPureNum) return 1;
+                return b.length - a.length;
+            });
+        }
+        
+        function displayOCRResults(items) {
+            // Hide scanner controls, show results
+            document.getElementById('scannerControls').style.display = 'none';
+            
+            // Create results HTML
+            const resultsHTML = `
+                <div id="ocrResults" style="padding: 16px; background: var(--white); border-radius: 12px; margin: 16px;">
+                    <p style="font-size: 12px; color: var(--gray-500); margin-bottom: 12px;">DETECTED TEXT - TAP TO SELECT:</p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
+                        ${items.slice(0, 10).map(item => `
+                            <button class="btn btn-secondary" onclick="selectOCRResult('${item}')" style="font-family: 'JetBrains Mono', monospace; font-size: 14px;">
+                                ${item}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-outline" onclick="retryScan()" style="flex: 1;">🔄 Retry</button>
+                    </div>
+                </div>
+            `;
+            
+            // Insert after scanner controls
+            const existingResults = document.getElementById('ocrResults');
+            if (existingResults) existingResults.remove();
+            
+            document.getElementById('scannerControls').insertAdjacentHTML('afterend', resultsHTML);
+            
+            showToast(`Found ${items.length} items - tap to select`, 'success');
+        }
+        
+        function selectOCRResult(value) {
+            // Remove results panel
+            const resultsPanel = document.getElementById('ocrResults');
+            if (resultsPanel) resultsPanel.remove();
+            
+            // Show confirmation
+            document.getElementById('detectedSerial').value = value;
+            document.getElementById('scanResult').style.display = 'block';
+            
+            showToast(`Selected: ${value}`, 'success');
+        }
 
         function retryScan() {
+            // Remove results panel if exists
+            const resultsPanel = document.getElementById('ocrResults');
+            if (resultsPanel) resultsPanel.remove();
+            
             document.getElementById('scanResult').style.display = 'none';
             document.getElementById('scannerControls').style.display = 'block';
             document.getElementById('detectedSerial').value = '';
