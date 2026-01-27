@@ -791,6 +791,11 @@
                     <div class="action-title">Pending</div>
                     <div class="action-subtitle" id="pendingCount">0 tests waiting</div>
                 </div>
+                <div class="action-card" onclick="showScreen('historyScreen')">
+                    <div class="action-icon">🔍</div>
+                    <div class="action-title">History</div>
+                    <div class="action-subtitle">Look up past tests</div>
+                </div>
             </div>
 
             <div class="section-title">Recent Activity</div>
@@ -1189,6 +1194,28 @@
                 </button>
             </div>
         </section>
+
+        <!-- History Screen -->
+        <section class="screen" id="historyScreen">
+            <div class="section-title">Test History Lookup</div>
+            
+            <div class="form-group" style="margin-bottom: 16px;">
+                <input type="text" class="form-input" id="historySearch" placeholder="Search by serial, customer, or location..." oninput="searchHistory(this.value)">
+            </div>
+            
+            <div id="historyResults" class="pending-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🔍</div>
+                    <h3>Search Test History</h3>
+                    <p>Enter a serial number, customer name, or location</p>
+                </div>
+            </div>
+            
+            <div id="historyLoading" style="display: none; text-align: center; padding: 20px;">
+                <div class="spinner" style="margin: 0 auto;"></div>
+                <p style="margin-top: 12px; color: var(--gray-500);">Loading history...</p>
+            </div>
+        </section>
     </main>
 
     <!-- Bottom Nav for Form -->
@@ -1222,6 +1249,7 @@
         let videoStream = null;
         let assetDB = [];
         let pendingTests = [];
+        let testHistory = [];
 
         // ============================================
         // INITIALIZATION
@@ -1229,6 +1257,9 @@
         document.addEventListener('DOMContentLoaded', async () => {
             // Load AssetDB from localStorage or fetch
             await loadAssetDB();
+            
+            // Load test history
+            await loadTestHistory();
             
             // Load pending tests from localStorage
             loadPendingTests();
@@ -1246,7 +1277,7 @@
         // ASSET DATABASE
         // ============================================
         async function loadAssetDB() {
-            const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbxFWRMkCVAZ4bon1q6Rw4swKxPZ2wESV0KyH_HCYvk5_DcgVIW7KYiqo9P9HcODqgMfaA/exec';
+            const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbxCDB9MnkaHuoo-T-oGzb6ui9txYhoqnbYsidODa4wXi2WsYrfkm8lS7LkWeBjE5KFU6A/exec';
             
             // Try to fetch fresh data from Google Sheets
             try {
@@ -1281,6 +1312,109 @@
             } catch (e) {
                 console.log('AssetDB not available, will use manual entry');
             }
+        }
+
+        async function loadTestHistory() {
+            const HISTORY_URL = 'https://script.google.com/macros/s/AKfycbxCDB9MnkaHuoo-T-oGzb6ui9txYhoqnbYsidODa4wXi2WsYrfkm8lS7LkWeBjE5KFU6A/exec?action=history';
+            
+            try {
+                const response = await fetch(HISTORY_URL);
+                if (response.ok) {
+                    testHistory = await response.json();
+                    localStorage.setItem('testHistory', JSON.stringify(testHistory));
+                    console.log(`Loaded ${testHistory.length} history records`);
+                    return;
+                }
+            } catch (e) {
+                console.log('Could not fetch history, trying cache...');
+            }
+            
+            // Fall back to cache
+            const cached = localStorage.getItem('testHistory');
+            if (cached) {
+                testHistory = JSON.parse(cached);
+                console.log(`Loaded ${testHistory.length} history records from cache`);
+            }
+        }
+
+        let historySearchTimeout;
+        function searchHistory(value) {
+            clearTimeout(historySearchTimeout);
+            
+            const resultsDiv = document.getElementById('historyResults');
+            
+            if (!value || value.trim().length < 2) {
+                resultsDiv.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <h3>Search Test History</h3>
+                        <p>Enter a serial number, customer name, or location</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            historySearchTimeout = setTimeout(() => {
+                const searchTerm = value.trim().toLowerCase();
+                
+                const matches = testHistory.filter(h => {
+                    const serial = String(h['Serial Number'] || '').toLowerCase();
+                    const customer = String(h['Customer'] || '').toLowerCase();
+                    const location = String(h['Facility/Location'] || '').toLowerCase();
+                    return serial.includes(searchTerm) || customer.includes(searchTerm) || location.includes(searchTerm);
+                });
+                
+                if (matches.length === 0) {
+                    resultsDiv.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">❌</div>
+                            <h3>No Results</h3>
+                            <p>No tests found matching "${value}"</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Sort by date (most recent first)
+                matches.sort((a, b) => {
+                    const dateA = new Date(a['Date Tested'] || 0);
+                    const dateB = new Date(b['Date Tested'] || 0);
+                    return dateB - dateA;
+                });
+                
+                resultsDiv.innerHTML = matches.slice(0, 20).map(h => {
+                    const date = h['Date Tested'] ? new Date(h['Date Tested']).toLocaleDateString() : 'Unknown';
+                    return `
+                        <div class="pending-item" style="cursor: pointer;" onclick="showHistoryDetail(${JSON.stringify(h).replace(/"/g, '&quot;')})">
+                            <div class="pending-info">
+                                <h4 style="font-family: 'JetBrains Mono', monospace;">${h['Serial Number'] || 'N/A'}</h4>
+                                <p>${h['Customer'] || ''} - ${h['Facility/Location'] || ''}</p>
+                                <p style="font-size: 11px; color: var(--gray-500);">Tested: ${date} by ${h['Tested By'] || 'Unknown'}</p>
+                            </div>
+                            <span class="pending-status" style="background: var(--green); color: white;">✓</span>
+                        </div>
+                    `;
+                }).join('');
+                
+                if (matches.length > 20) {
+                    resultsDiv.innerHTML += `<p style="text-align: center; padding: 12px; color: var(--gray-500);">Showing 20 of ${matches.length} results</p>`;
+                }
+            }, 300);
+        }
+        
+        function showHistoryDetail(record) {
+            const date = record['Date Tested'] ? new Date(record['Date Tested']).toLocaleDateString() : 'Unknown';
+            const details = `
+Serial Number: ${record['Serial Number'] || 'N/A'}
+Customer: ${record['Customer'] || 'N/A'}
+Location: ${record['Facility/Location'] || 'N/A'}
+Date Tested: ${date}
+Tested By: ${record['Tested By'] || 'N/A'}
+Manufacturer: ${record['Manufacturer/Model'] || 'N/A'}
+Accuracy: ${record['Accuracy (%)'] || 'N/A'}%
+GPS: ${record['GPS Coordinates'] || 'N/A'}
+            `;
+            alert(details);
         }
 
         let searchTimeout;
@@ -1450,7 +1584,7 @@
         document.getElementById('backBtn').addEventListener('click', () => {
             if (currentScreen === 'scannerScreen' || currentScreen === 'formScreen') {
                 showScreen('homeScreen');
-            } else if (currentScreen === 'pendingScreen') {
+            } else if (currentScreen === 'pendingScreen' || currentScreen === 'historyScreen') {
                 showScreen('homeScreen');
             }
         });
@@ -2114,6 +2248,49 @@
                         console.log('AssetDB update sent');
                     } catch (error) {
                         console.error(`Error updating AssetDB: ${error}`);
+                    }
+                    
+                    // 4. Add to Test History
+                    try {
+                        const historyData = {
+                            action: 'addHistory',
+                            customer: test.customer,
+                            location: test.location,
+                            timestamp: test.timestamp,
+                            testedBy: test.testedBy,
+                            manufacturer: test.manufacturer,
+                            serialNumber: test.serialNumber,
+                            accuracy: '', // Can be added later if needed
+                            gpsCoordinates: test.gpsCoordinates
+                        };
+                        
+                        const historyIframe = document.createElement('iframe');
+                        historyIframe.name = 'historyFrame' + i;
+                        historyIframe.style.display = 'none';
+                        document.body.appendChild(historyIframe);
+                        
+                        const historyForm = document.createElement('form');
+                        historyForm.method = 'POST';
+                        historyForm.action = ASSETDB_URL;
+                        historyForm.target = historyIframe.name;
+                        
+                        const historyInput = document.createElement('input');
+                        historyInput.type = 'hidden';
+                        historyInput.name = 'data';
+                        historyInput.value = JSON.stringify(historyData);
+                        historyForm.appendChild(historyInput);
+                        
+                        document.body.appendChild(historyForm);
+                        historyForm.submit();
+                        
+                        setTimeout(() => {
+                            document.body.removeChild(historyForm);
+                            document.body.removeChild(historyIframe);
+                        }, 2000);
+                        
+                        console.log('Test History updated');
+                    } catch (error) {
+                        console.error(`Error updating Test History: ${error}`);
                     }
                 }
                 
