@@ -1498,22 +1498,12 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 customer.toLowerCase().includes(c.toLowerCase())
             );
             
-            // Determine current round for semi-annual (Round 1: Jan-Jun, Round 2: Jul-Dec)
-            const currentMonth = new Date().getMonth(); // 0-11
+            // Current year and round
             const currentYear = new Date().getFullYear();
+            const currentMonth = new Date().getMonth(); // 0-11
             const currentRound = currentMonth < 6 ? 1 : 2;
             
-            // Round date ranges
-            const round1Start = new Date(currentYear, 0, 1); // Jan 1
-            const round1End = new Date(currentYear, 5, 30); // Jun 30
-            const round2Start = new Date(currentYear, 6, 1); // Jul 1
-            const round2End = new Date(currentYear, 11, 31); // Dec 31
-            
-            // For annual: check last 12 months
-            const annualCutoff = new Date();
-            annualCutoff.setMonth(annualCutoff.getMonth() - 12);
-            
-            // Check which have been tested recently and get their frequency
+            // Check which have been tested
             const metersWithStatus = customerMeters.map(meter => {
                 const serial = meter['Serial Number'];
                 const assetFrequency = meter['Service Frequency'] || '';
@@ -1532,40 +1522,39 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     frequency = isSemiAnnualCustomer ? 'Semi-Annual' : 'Annual';
                 }
                 
-                // Calculate if due based on frequency
+                // Check tests THIS YEAR
+                const testsThisYear = tests.filter(t => {
+                    const testDate = new Date(t['Date Tested']);
+                    return testDate.getFullYear() === currentYear;
+                });
+                
+                // Check Round 1 (Jan-Jun) this year
+                const testedRound1 = testsThisYear.some(t => {
+                    const testDate = new Date(t['Date Tested']);
+                    return testDate.getMonth() < 6;
+                });
+                
+                // Check Round 2 (Jul-Dec) this year
+                const testedRound2 = testsThisYear.some(t => {
+                    const testDate = new Date(t['Date Tested']);
+                    return testDate.getMonth() >= 6;
+                });
+                
+                // Calculate if due
                 let isDue = true;
                 let roundStatus = null;
                 
                 if (frequency === 'Semi-Annual') {
-                    // Check if tested in current round
-                    const roundStart = currentRound === 1 ? round1Start : round2Start;
-                    const roundEnd = currentRound === 1 ? round1End : round2End;
-                    
-                    const testedThisRound = tests.some(t => {
-                        const testDate = new Date(t['Date Tested']);
-                        return testDate >= roundStart && testDate <= roundEnd;
-                    });
-                    
-                    // Check Round 1 status (for display)
-                    const testedRound1 = tests.some(t => {
-                        const testDate = new Date(t['Date Tested']);
-                        return testDate >= round1Start && testDate <= round1End;
-                    });
-                    
-                    // Check Round 2 status (for display)
-                    const testedRound2 = tests.some(t => {
-                        const testDate = new Date(t['Date Tested']);
-                        return testDate >= round2Start && testDate <= round2End;
-                    });
-                    
-                    isDue = !testedThisRound;
+                    // Due if not tested in current round this year
+                    isDue = currentRound === 1 ? !testedRound1 : !testedRound2;
                     roundStatus = {
                         round1: testedRound1,
                         round2: testedRound2,
                         currentRound: currentRound
                     };
                 } else if (frequency === 'Annual') {
-                    isDue = !lastTestDate || lastTestDate < annualCutoff;
+                    // Due if not tested at all this year
+                    isDue = testsThisYear.length === 0;
                 } else if (frequency === 'Call Out' || frequency === 'None') {
                     isDue = false;
                 }
@@ -1576,6 +1565,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     isDue,
                     frequency,
                     roundStatus,
+                    testedThisYear: testsThisYear.length > 0,
                     lastTestBy: lastTest ? lastTest['Tested By'] : null
                 };
             });
@@ -1602,7 +1592,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             
             // Update summary
             document.getElementById('trackerSummary').style.display = 'block';
-            const roundLabel = hasSemiAnnual ? ` - Round ${currentRound} (${currentRound === 1 ? 'Jan-Jun' : 'Jul-Dec'})` : '';
+            const roundLabel = hasSemiAnnual ? ` - Round ${currentRound} (${currentRound === 1 ? 'Jan-Jun' : 'Jul-Dec'} ${currentYear})` : ` - ${currentYear}`;
             document.getElementById('trackerCustomerName').textContent = customer + roundLabel;
             document.getElementById('trackerProgress').textContent = `${testedMeters}/${totalMeters} tested`;
             document.getElementById('trackerProgressBar').style.width = progress + '%';
