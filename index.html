@@ -1466,7 +1466,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         // ============================================
         // TRACKER
         // ============================================
-        const TWICE_YEARLY_CUSTOMERS = ['New Braunfels Utilities', 'NBU', 'Johnson County SUD'];
+        const TWICE_YEARLY_CUSTOMERS = ['New Braunfels Utilities', 'NBU', 'Johnson County SUD', 'Mid South'];
         
         function initTracker() {
             // Get unique customers from AssetDB
@@ -1493,12 +1493,32 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             // Get all meters for this customer from AssetDB
             const customerMeters = assetDB.filter(a => a['Customer'] === customer);
             
+            // Determine if this is a semi-annual customer
+            const isSemiAnnualCustomer = TWICE_YEARLY_CUSTOMERS.some(c => 
+                customer.toLowerCase().includes(c.toLowerCase())
+            );
+            
+            // Determine current round for semi-annual (Round 1: Jan-Jun, Round 2: Jul-Dec)
+            const currentMonth = new Date().getMonth(); // 0-11
+            const currentYear = new Date().getFullYear();
+            const currentRound = currentMonth < 6 ? 1 : 2;
+            
+            // Round date ranges
+            const round1Start = new Date(currentYear, 0, 1); // Jan 1
+            const round1End = new Date(currentYear, 5, 30); // Jun 30
+            const round2Start = new Date(currentYear, 6, 1); // Jul 1
+            const round2End = new Date(currentYear, 11, 31); // Dec 31
+            
+            // For annual: check last 12 months
+            const annualCutoff = new Date();
+            annualCutoff.setMonth(annualCutoff.getMonth() - 12);
+            
             // Check which have been tested recently and get their frequency
             const metersWithStatus = customerMeters.map(meter => {
                 const serial = meter['Serial Number'];
                 const assetFrequency = meter['Service Frequency'] || '';
                 
-                // Find most recent test for this meter
+                // Find all tests for this meter
                 const tests = testHistory.filter(h => 
                     String(h['Serial Number']) === String(serial)
                 ).sort((a, b) => new Date(b['Date Tested']) - new Date(a['Date Tested']));
@@ -1506,28 +1526,48 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 const lastTest = tests[0];
                 const lastTestDate = lastTest ? new Date(lastTest['Date Tested']) : null;
                 
-                // Determine frequency: from AssetDB, or default based on customer
+                // Determine frequency
                 let frequency = assetFrequency;
                 if (!frequency || frequency === '') {
-                    const isTwiceYearly = TWICE_YEARLY_CUSTOMERS.some(c => 
-                        customer.toLowerCase().includes(c.toLowerCase())
-                    );
-                    frequency = isTwiceYearly ? 'Semi-Annual' : 'Annual';
+                    frequency = isSemiAnnualCustomer ? 'Semi-Annual' : 'Annual';
                 }
                 
                 // Calculate if due based on frequency
                 let isDue = true;
-                if (lastTestDate) {
-                    const now = new Date();
-                    const monthsSinceTest = (now - lastTestDate) / (1000 * 60 * 60 * 24 * 30);
+                let roundStatus = null;
+                
+                if (frequency === 'Semi-Annual') {
+                    // Check if tested in current round
+                    const roundStart = currentRound === 1 ? round1Start : round2Start;
+                    const roundEnd = currentRound === 1 ? round1End : round2End;
                     
-                    if (frequency === 'Semi-Annual') {
-                        isDue = monthsSinceTest >= 6;
-                    } else if (frequency === 'Annual') {
-                        isDue = monthsSinceTest >= 12;
-                    } else if (frequency === 'Call Out' || frequency === 'None') {
-                        isDue = false; // Call Outs are never "due"
-                    }
+                    const testedThisRound = tests.some(t => {
+                        const testDate = new Date(t['Date Tested']);
+                        return testDate >= roundStart && testDate <= roundEnd;
+                    });
+                    
+                    // Check Round 1 status (for display)
+                    const testedRound1 = tests.some(t => {
+                        const testDate = new Date(t['Date Tested']);
+                        return testDate >= round1Start && testDate <= round1End;
+                    });
+                    
+                    // Check Round 2 status (for display)
+                    const testedRound2 = tests.some(t => {
+                        const testDate = new Date(t['Date Tested']);
+                        return testDate >= round2Start && testDate <= round2End;
+                    });
+                    
+                    isDue = !testedThisRound;
+                    roundStatus = {
+                        round1: testedRound1,
+                        round2: testedRound2,
+                        currentRound: currentRound
+                    };
+                } else if (frequency === 'Annual') {
+                    isDue = !lastTestDate || lastTestDate < annualCutoff;
+                } else if (frequency === 'Call Out' || frequency === 'None') {
+                    isDue = false;
                 }
                 
                 return {
@@ -1535,6 +1575,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     lastTestDate,
                     isDue,
                     frequency,
+                    roundStatus,
                     lastTestBy: lastTest ? lastTest['Tested By'] : null
                 };
             });
@@ -1561,7 +1602,8 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             
             // Update summary
             document.getElementById('trackerSummary').style.display = 'block';
-            document.getElementById('trackerCustomerName').textContent = customer + (hasSemiAnnual ? ' (Semi-Annual)' : '');
+            const roundLabel = hasSemiAnnual ? ` - Round ${currentRound} (${currentRound === 1 ? 'Jan-Jun' : 'Jul-Dec'})` : '';
+            document.getElementById('trackerCustomerName').textContent = customer + roundLabel;
             document.getElementById('trackerProgress').textContent = `${testedMeters}/${totalMeters} tested`;
             document.getElementById('trackerProgressBar').style.width = progress + '%';
             
@@ -1581,13 +1623,23 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 const lastTestStr = m.lastTestDate ? m.lastTestDate.toLocaleDateString() : 'Never';
                 const statusClass = m.isDue ? 'background: var(--gold); color: var(--navy);' : 'background: var(--green); color: white;';
                 const statusText = m.isDue ? 'DUE' : '✓';
-                const freqBadge = m.frequency === 'Semi-Annual' ? ' <span style="font-size: 10px; background: var(--teal); color: white; padding: 2px 6px; border-radius: 4px;">2x/yr</span>' : '';
+                
+                // Round badges for semi-annual
+                let roundBadges = '';
+                if (m.roundStatus) {
+                    const r1Class = m.roundStatus.round1 ? 'background: var(--green); color: white;' : 'background: var(--gray-300); color: var(--gray-600);';
+                    const r2Class = m.roundStatus.round2 ? 'background: var(--green); color: white;' : 'background: var(--gray-300); color: var(--gray-600);';
+                    roundBadges = `
+                        <span style="font-size: 10px; ${r1Class} padding: 2px 6px; border-radius: 4px; margin-right: 4px;">R1</span>
+                        <span style="font-size: 10px; ${r2Class} padding: 2px 6px; border-radius: 4px;">R2</span>
+                    `;
+                }
                 
                 return `
                     <div class="pending-item" style="cursor: pointer;" onclick="startTestFromTracker('${(m['Serial Number'] || '').replace(/'/g, "\\'")}')">
                         <div class="pending-info">
-                            <h4 style="font-family: 'JetBrains Mono', monospace;">${m['Serial Number'] || 'N/A'}${freqBadge}</h4>
-                            <p>${m['Facility/Location'] || 'Unknown Location'}</p>
+                            <h4 style="font-family: 'JetBrains Mono', monospace;">${m['Serial Number'] || 'N/A'}</h4>
+                            <p>${m['Facility/Location'] || 'Unknown Location'} ${roundBadges}</p>
                             <p style="font-size: 11px; color: var(--gray-500);">Last tested: ${lastTestStr}</p>
                         </div>
                         <span class="pending-status" style="${statusClass}">${statusText}</span>
