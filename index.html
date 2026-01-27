@@ -796,6 +796,11 @@
                     <div class="action-title">History</div>
                     <div class="action-subtitle">Look up past tests</div>
                 </div>
+                <div class="action-card" onclick="showScreen('trackerScreen')">
+                    <div class="action-icon">📊</div>
+                    <div class="action-title">Tracker</div>
+                    <div class="action-subtitle">Meters due for testing</div>
+                </div>
             </div>
 
             <div class="section-title">Recent Activity</div>
@@ -1216,6 +1221,35 @@
                 <p style="margin-top: 12px; color: var(--gray-500);">Loading history...</p>
             </div>
         </section>
+
+        <!-- Tracker Screen -->
+        <section class="screen" id="trackerScreen">
+            <div class="section-title">Testing Tracker</div>
+            
+            <div class="form-group" style="margin-bottom: 16px;">
+                <select class="form-select" id="trackerCustomer" onchange="showCustomerMeters(this.value)">
+                    <option value="">Select Customer...</option>
+                </select>
+            </div>
+            
+            <div id="trackerSummary" style="display: none; background: var(--white); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3 id="trackerCustomerName" style="font-size: 16px; margin: 0;">Customer</h3>
+                    <span id="trackerProgress" style="font-size: 14px; color: var(--teal); font-weight: 600;">0/0</span>
+                </div>
+                <div style="background: var(--gray-200); border-radius: 8px; height: 8px; overflow: hidden;">
+                    <div id="trackerProgressBar" style="background: var(--teal); height: 100%; width: 0%; transition: width 0.3s;"></div>
+                </div>
+            </div>
+            
+            <div id="trackerMeters" class="pending-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <h3>Select a Customer</h3>
+                    <p>Choose a customer to see meters due for testing</p>
+                </div>
+            </div>
+        </section>
     </main>
 
     <!-- Bottom Nav for Form -->
@@ -1260,6 +1294,9 @@
             
             // Load test history
             await loadTestHistory();
+            
+            // Initialize tracker
+            initTracker();
             
             // Load pending tests from localStorage
             loadPendingTests();
@@ -1415,6 +1452,119 @@ Accuracy: ${record['Accuracy (%)'] || 'N/A'}%
 GPS: ${record['GPS Coordinates'] || 'N/A'}
             `;
             alert(details);
+        }
+
+        // ============================================
+        // TRACKER
+        // ============================================
+        const TWICE_YEARLY_CUSTOMERS = ['New Braunfels Utilities', 'NBU', 'Johnson County SUD'];
+        
+        function initTracker() {
+            // Get unique customers from AssetDB
+            const customers = [...new Set(assetDB.map(a => a['Customer']).filter(c => c))].sort();
+            
+            const select = document.getElementById('trackerCustomer');
+            select.innerHTML = '<option value="">Select Customer...</option>' + 
+                customers.map(c => `<option value="${c}">${c}</option>`).join('');
+        }
+        
+        function showCustomerMeters(customer) {
+            if (!customer) {
+                document.getElementById('trackerSummary').style.display = 'none';
+                document.getElementById('trackerMeters').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📊</div>
+                        <h3>Select a Customer</h3>
+                        <p>Choose a customer to see meters due for testing</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Determine testing frequency
+            const isTwiceYearly = TWICE_YEARLY_CUSTOMERS.some(c => 
+                customer.toLowerCase().includes(c.toLowerCase())
+            );
+            const monthsThreshold = isTwiceYearly ? 6 : 12;
+            const cutoffDate = new Date();
+            cutoffDate.setMonth(cutoffDate.getMonth() - monthsThreshold);
+            
+            // Get all meters for this customer from AssetDB
+            const customerMeters = assetDB.filter(a => a['Customer'] === customer);
+            
+            // Check which have been tested recently
+            const metersWithStatus = customerMeters.map(meter => {
+                const serial = meter['Serial Number'];
+                
+                // Find most recent test for this meter
+                const tests = testHistory.filter(h => 
+                    String(h['Serial Number']) === String(serial)
+                ).sort((a, b) => new Date(b['Date Tested']) - new Date(a['Date Tested']));
+                
+                const lastTest = tests[0];
+                const lastTestDate = lastTest ? new Date(lastTest['Date Tested']) : null;
+                const isDue = !lastTestDate || lastTestDate < cutoffDate;
+                
+                return {
+                    ...meter,
+                    lastTestDate,
+                    isDue,
+                    lastTestBy: lastTest ? lastTest['Tested By'] : null
+                };
+            });
+            
+            // Sort: due meters first, then by location
+            metersWithStatus.sort((a, b) => {
+                if (a.isDue && !b.isDue) return -1;
+                if (!a.isDue && b.isDue) return 1;
+                return (a['Facility/Location'] || '').localeCompare(b['Facility/Location'] || '');
+            });
+            
+            // Calculate progress
+            const totalMeters = metersWithStatus.length;
+            const testedMeters = metersWithStatus.filter(m => !m.isDue).length;
+            const progress = totalMeters > 0 ? Math.round((testedMeters / totalMeters) * 100) : 0;
+            
+            // Update summary
+            document.getElementById('trackerSummary').style.display = 'block';
+            document.getElementById('trackerCustomerName').textContent = customer + (isTwiceYearly ? ' (2x/year)' : '');
+            document.getElementById('trackerProgress').textContent = `${testedMeters}/${totalMeters} tested`;
+            document.getElementById('trackerProgressBar').style.width = progress + '%';
+            
+            // Render meter list
+            if (metersWithStatus.length === 0) {
+                document.getElementById('trackerMeters').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <h3>No Meters Found</h3>
+                        <p>No meters in database for this customer</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            document.getElementById('trackerMeters').innerHTML = metersWithStatus.map(m => {
+                const lastTestStr = m.lastTestDate ? m.lastTestDate.toLocaleDateString() : 'Never';
+                const statusClass = m.isDue ? 'background: var(--gold); color: var(--navy);' : 'background: var(--green); color: white;';
+                const statusText = m.isDue ? 'DUE' : '✓';
+                
+                return `
+                    <div class="pending-item" style="cursor: pointer;" onclick="startTestFromTracker('${(m['Serial Number'] || '').replace(/'/g, "\\'")}')">
+                        <div class="pending-info">
+                            <h4 style="font-family: 'JetBrains Mono', monospace;">${m['Serial Number'] || 'N/A'}</h4>
+                            <p>${m['Facility/Location'] || 'Unknown Location'}</p>
+                            <p style="font-size: 11px; color: var(--gray-500);">Last tested: ${lastTestStr}</p>
+                        </div>
+                        <span class="pending-status" style="${statusClass}">${statusText}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function startTestFromTracker(serialNumber) {
+            if (serialNumber) {
+                lookupSerial(serialNumber);
+            }
         }
 
         let searchTimeout;
@@ -1584,7 +1734,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         document.getElementById('backBtn').addEventListener('click', () => {
             if (currentScreen === 'scannerScreen' || currentScreen === 'formScreen') {
                 showScreen('homeScreen');
-            } else if (currentScreen === 'pendingScreen' || currentScreen === 'historyScreen') {
+            } else if (currentScreen === 'pendingScreen' || currentScreen === 'historyScreen' || currentScreen === 'trackerScreen') {
                 showScreen('homeScreen');
             }
         });
