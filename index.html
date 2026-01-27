@@ -913,6 +913,15 @@
                         <option value="Wastewater">Wastewater</option>
                     </select>
                 </div>
+
+                <div class="form-group">
+                    <label class="form-label">Service Frequency</label>
+                    <select class="form-select" id="formServiceFrequency">
+                        <option value="Annual">Annual</option>
+                        <option value="Semi-Annual">Semi-Annual</option>
+                        <option value="Call Out">Call Out (One-time)</option>
+                    </select>
+                </div>
             </div>
 
             <!-- Service Type Section -->
@@ -1481,20 +1490,13 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 return;
             }
             
-            // Determine testing frequency
-            const isTwiceYearly = TWICE_YEARLY_CUSTOMERS.some(c => 
-                customer.toLowerCase().includes(c.toLowerCase())
-            );
-            const monthsThreshold = isTwiceYearly ? 6 : 12;
-            const cutoffDate = new Date();
-            cutoffDate.setMonth(cutoffDate.getMonth() - monthsThreshold);
-            
             // Get all meters for this customer from AssetDB
             const customerMeters = assetDB.filter(a => a['Customer'] === customer);
             
-            // Check which have been tested recently
+            // Check which have been tested recently and get their frequency
             const metersWithStatus = customerMeters.map(meter => {
                 const serial = meter['Serial Number'];
+                const assetFrequency = meter['Service Frequency'] || '';
                 
                 // Find most recent test for this meter
                 const tests = testHistory.filter(h => 
@@ -1503,55 +1505,88 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 
                 const lastTest = tests[0];
                 const lastTestDate = lastTest ? new Date(lastTest['Date Tested']) : null;
-                const isDue = !lastTestDate || lastTestDate < cutoffDate;
+                
+                // Determine frequency: from AssetDB, or default based on customer
+                let frequency = assetFrequency;
+                if (!frequency || frequency === '') {
+                    const isTwiceYearly = TWICE_YEARLY_CUSTOMERS.some(c => 
+                        customer.toLowerCase().includes(c.toLowerCase())
+                    );
+                    frequency = isTwiceYearly ? 'Semi-Annual' : 'Annual';
+                }
+                
+                // Calculate if due based on frequency
+                let isDue = true;
+                if (lastTestDate) {
+                    const now = new Date();
+                    const monthsSinceTest = (now - lastTestDate) / (1000 * 60 * 60 * 24 * 30);
+                    
+                    if (frequency === 'Semi-Annual') {
+                        isDue = monthsSinceTest >= 6;
+                    } else if (frequency === 'Annual') {
+                        isDue = monthsSinceTest >= 12;
+                    } else if (frequency === 'Call Out' || frequency === 'None') {
+                        isDue = false; // Call Outs are never "due"
+                    }
+                }
                 
                 return {
                     ...meter,
                     lastTestDate,
                     isDue,
+                    frequency,
                     lastTestBy: lastTest ? lastTest['Tested By'] : null
                 };
             });
             
+            // Filter out Call Outs and None from the tracker
+            const trackableMeters = metersWithStatus.filter(m => 
+                m.frequency !== 'Call Out' && m.frequency !== 'None'
+            );
+            
             // Sort: due meters first, then by location
-            metersWithStatus.sort((a, b) => {
+            trackableMeters.sort((a, b) => {
                 if (a.isDue && !b.isDue) return -1;
                 if (!a.isDue && b.isDue) return 1;
                 return (a['Facility/Location'] || '').localeCompare(b['Facility/Location'] || '');
             });
             
             // Calculate progress
-            const totalMeters = metersWithStatus.length;
-            const testedMeters = metersWithStatus.filter(m => !m.isDue).length;
+            const totalMeters = trackableMeters.length;
+            const testedMeters = trackableMeters.filter(m => !m.isDue).length;
             const progress = totalMeters > 0 ? Math.round((testedMeters / totalMeters) * 100) : 0;
+            
+            // Check if customer has any semi-annual meters
+            const hasSemiAnnual = trackableMeters.some(m => m.frequency === 'Semi-Annual');
             
             // Update summary
             document.getElementById('trackerSummary').style.display = 'block';
-            document.getElementById('trackerCustomerName').textContent = customer + (isTwiceYearly ? ' (2x/year)' : '');
+            document.getElementById('trackerCustomerName').textContent = customer + (hasSemiAnnual ? ' (Semi-Annual)' : '');
             document.getElementById('trackerProgress').textContent = `${testedMeters}/${totalMeters} tested`;
             document.getElementById('trackerProgressBar').style.width = progress + '%';
             
             // Render meter list
-            if (metersWithStatus.length === 0) {
+            if (trackableMeters.length === 0) {
                 document.getElementById('trackerMeters').innerHTML = `
                     <div class="empty-state">
                         <div class="empty-state-icon">📭</div>
-                        <h3>No Meters Found</h3>
-                        <p>No meters in database for this customer</p>
+                        <h3>No Trackable Meters</h3>
+                        <p>No meters in database for this customer (or all are Call Outs)</p>
                     </div>
                 `;
                 return;
             }
             
-            document.getElementById('trackerMeters').innerHTML = metersWithStatus.map(m => {
+            document.getElementById('trackerMeters').innerHTML = trackableMeters.map(m => {
                 const lastTestStr = m.lastTestDate ? m.lastTestDate.toLocaleDateString() : 'Never';
                 const statusClass = m.isDue ? 'background: var(--gold); color: var(--navy);' : 'background: var(--green); color: white;';
                 const statusText = m.isDue ? 'DUE' : '✓';
+                const freqBadge = m.frequency === 'Semi-Annual' ? ' <span style="font-size: 10px; background: var(--teal); color: white; padding: 2px 6px; border-radius: 4px;">2x/yr</span>' : '';
                 
                 return `
                     <div class="pending-item" style="cursor: pointer;" onclick="startTestFromTracker('${(m['Serial Number'] || '').replace(/'/g, "\\'")}')">
                         <div class="pending-info">
-                            <h4 style="font-family: 'JetBrains Mono', monospace;">${m['Serial Number'] || 'N/A'}</h4>
+                            <h4 style="font-family: 'JetBrains Mono', monospace;">${m['Serial Number'] || 'N/A'}${freqBadge}</h4>
                             <p>${m['Facility/Location'] || 'Unknown Location'}</p>
                             <p style="font-size: 11px; color: var(--gray-500);">Last tested: ${lastTestStr}</p>
                         </div>
@@ -1667,6 +1702,18 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             document.getElementById('formSerial').value = asset['Serial Number'] || '';
             document.getElementById('formManufacturer').value = asset['Manufacturer/Model'] || '';
             document.getElementById('formWaterType').value = asset['Water/Wastewater'] || '';
+            
+            // Set service frequency from AssetDB or default based on customer
+            if (asset['Service Frequency']) {
+                document.getElementById('formServiceFrequency').value = asset['Service Frequency'];
+            } else {
+                // Default: Semi-Annual for NBU/Johnson County, Annual for others
+                const customer = asset['Customer'] || '';
+                const isTwiceYearly = TWICE_YEARLY_CUSTOMERS.some(c => 
+                    customer.toLowerCase().includes(c.toLowerCase())
+                );
+                document.getElementById('formServiceFrequency').value = isTwiceYearly ? 'Semi-Annual' : 'Annual';
+            }
             
             // Pre-select service type if known
             if (asset['Service Type']) {
@@ -1982,6 +2029,8 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             document.querySelectorAll('.form-input, .form-select, .form-textarea').forEach(input => {
                 if (input.id === 'formTestedBy') {
                     input.value = 'Mick Bartlett'; // Default
+                } else if (input.id === 'formServiceFrequency') {
+                    input.value = 'Annual'; // Default frequency
                 } else {
                     input.value = '';
                 }
@@ -2154,6 +2203,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 timestamp: new Date().toISOString(),
                 serviceType: selectedServiceType,
                 isStartup: isStartup,
+                serviceFrequency: document.getElementById('formServiceFrequency').value,
                 
                 // Common fields
                 customer: customer,
