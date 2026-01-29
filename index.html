@@ -1323,7 +1323,7 @@
         // ASSET DATABASE
         // ============================================
         async function loadAssetDB() {
-            const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbxCDB9MnkaHuoo-T-oGzb6ui9txYhoqnbYsidODa4wXi2WsYrfkm8lS7LkWeBjE5KFU6A/exec';
+            const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbzveftDukZJcyDg5FuIKvAvh1oWoTbK2yIjX8IQt2qBHJo5KyrnSf-Tf2QR3TRQNoQI4g/exec';
             
             // Try to fetch fresh data from Google Sheets
             try {
@@ -1361,7 +1361,7 @@
         }
 
         async function loadTestHistory() {
-            const HISTORY_URL = 'https://script.google.com/macros/s/AKfycbxCDB9MnkaHuoo-T-oGzb6ui9txYhoqnbYsidODa4wXi2WsYrfkm8lS7LkWeBjE5KFU6A/exec?action=history';
+            const HISTORY_URL = 'https://script.google.com/macros/s/AKfycbzveftDukZJcyDg5FuIKvAvh1oWoTbK2yIjX8IQt2qBHJo5KyrnSf-Tf2QR3TRQNoQI4g/exec?action=history';
             
             try {
                 const response = await fetch(HISTORY_URL);
@@ -1540,12 +1540,11 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     return testDate.getMonth() >= 6;
                 });
                 
-                // Calculate if due
+                // Calculate if due (for current round only for semi-annual)
                 let isDue = true;
                 let roundStatus = null;
                 
                 if (frequency === 'Semi-Annual') {
-                    // Due if not tested in current round this year
                     isDue = currentRound === 1 ? !testedRound1 : !testedRound2;
                     roundStatus = {
                         round1: testedRound1,
@@ -1553,7 +1552,6 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                         currentRound: currentRound
                     };
                 } else if (frequency === 'Annual') {
-                    // Due if not tested at all this year
                     isDue = testsThisYear.length === 0;
                 } else if (frequency === 'Call Out' || frequency === 'None') {
                     isDue = false;
@@ -1565,6 +1563,8 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     isDue,
                     frequency,
                     roundStatus,
+                    testedRound1,
+                    testedRound2,
                     testedThisYear: testsThisYear.length > 0,
                     lastTestBy: lastTest ? lastTest['Tested By'] : null
                 };
@@ -1582,20 +1582,56 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 return (a['Facility/Location'] || '').localeCompare(b['Facility/Location'] || '');
             });
             
-            // Calculate progress
-            const totalMeters = trackableMeters.length;
-            const testedMeters = trackableMeters.filter(m => !m.isDue).length;
-            const progress = totalMeters > 0 ? Math.round((testedMeters / totalMeters) * 100) : 0;
-            
             // Check if customer has any semi-annual meters
             const hasSemiAnnual = trackableMeters.some(m => m.frequency === 'Semi-Annual');
             
-            // Update summary
-            document.getElementById('trackerSummary').style.display = 'block';
-            const roundLabel = hasSemiAnnual ? ` - Round ${currentRound} (${currentRound === 1 ? 'Jan-Jun' : 'Jul-Dec'} ${currentYear})` : ` - ${currentYear}`;
-            document.getElementById('trackerCustomerName').textContent = customer + roundLabel;
-            document.getElementById('trackerProgress').textContent = `${testedMeters}/${totalMeters} tested`;
-            document.getElementById('trackerProgressBar').style.width = progress + '%';
+            // Calculate progress
+            const totalMeters = trackableMeters.length;
+            let summaryHTML = '';
+            
+            if (hasSemiAnnual) {
+                // Separate counts for Round 1 and Round 2
+                const round1Tested = trackableMeters.filter(m => m.testedRound1).length;
+                const round2Tested = trackableMeters.filter(m => m.testedRound2).length;
+                const round1Progress = totalMeters > 0 ? Math.round((round1Tested / totalMeters) * 100) : 0;
+                const round2Progress = totalMeters > 0 ? Math.round((round2Tested / totalMeters) * 100) : 0;
+                
+                document.getElementById('trackerSummary').style.display = 'block';
+                document.getElementById('trackerCustomerName').textContent = `${customer} - ${currentYear}`;
+                document.getElementById('trackerProgress').textContent = '';
+                document.getElementById('trackerProgressBar').style.width = '0%';
+                document.getElementById('trackerProgressBar').parentElement.style.display = 'none';
+                
+                // Add round-specific progress after summary
+                summaryHTML = `
+                    <div style="margin-top: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="font-size: 13px; ${currentRound === 1 ? 'font-weight: 600;' : ''}">Round 1 (Jan-Jun)</span>
+                            <span style="font-size: 13px; color: var(--teal); font-weight: 600;">${round1Tested}/${totalMeters}</span>
+                        </div>
+                        <div style="background: var(--gray-200); border-radius: 8px; height: 8px; overflow: hidden; margin-bottom: 12px;">
+                            <div style="background: ${currentRound === 1 ? 'var(--gold)' : 'var(--green)'}; height: 100%; width: ${round1Progress}%; transition: width 0.3s;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="font-size: 13px; ${currentRound === 2 ? 'font-weight: 600;' : ''}">Round 2 (Jul-Dec)</span>
+                            <span style="font-size: 13px; color: var(--teal); font-weight: 600;">${round2Tested}/${totalMeters}</span>
+                        </div>
+                        <div style="background: var(--gray-200); border-radius: 8px; height: 8px; overflow: hidden;">
+                            <div style="background: ${currentRound === 2 ? 'var(--gold)' : 'var(--green)'}; height: 100%; width: ${round2Progress}%; transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Annual - single progress bar
+                const testedMeters = trackableMeters.filter(m => !m.isDue).length;
+                const progress = totalMeters > 0 ? Math.round((testedMeters / totalMeters) * 100) : 0;
+                
+                document.getElementById('trackerSummary').style.display = 'block';
+                document.getElementById('trackerCustomerName').textContent = `${customer} - ${currentYear}`;
+                document.getElementById('trackerProgress').textContent = `${testedMeters}/${totalMeters} tested`;
+                document.getElementById('trackerProgressBar').parentElement.style.display = 'block';
+                document.getElementById('trackerProgressBar').style.width = progress + '%';
+            }
             
             // Render meter list
             if (trackableMeters.length === 0) {
@@ -1609,7 +1645,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 return;
             }
             
-            document.getElementById('trackerMeters').innerHTML = trackableMeters.map(m => {
+            document.getElementById('trackerMeters').innerHTML = summaryHTML + trackableMeters.map(m => {
                 const lastTestStr = m.lastTestDate ? m.lastTestDate.toLocaleDateString() : 'Never';
                 const statusClass = m.isDue ? 'background: var(--gold); color: var(--navy);' : 'background: var(--green); color: white;';
                 const statusText = m.isDue ? 'DUE' : '✓';
