@@ -781,6 +781,11 @@
                     <div class="action-title">Scan Meter</div>
                     <div class="action-subtitle">Scan serial number to start test</div>
                 </div>
+                <div class="action-card primary" onclick="showFindNearbyOptions()">
+                    <div class="action-icon">📍</div>
+                    <div class="action-title">Find Nearby Meter</div>
+                    <div class="action-subtitle">Locate meter by GPS</div>
+                </div>
                 <div class="action-card" onclick="showScreen('formScreen'); resetForm();">
                     <div class="action-icon">📝</div>
                     <div class="action-title">Manual Entry</div>
@@ -1584,14 +1589,12 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             
             // Check if customer has any semi-annual meters
             const hasSemiAnnual = trackableMeters.some(m => m.frequency === 'Semi-Annual');
-            console.log('DEBUG: hasSemiAnnual =', hasSemiAnnual, 'trackableMeters count =', trackableMeters.length);
             
             // Calculate progress
             const totalMeters = trackableMeters.length;
             let summaryHTML = '';
             
             if (hasSemiAnnual) {
-                console.log('DEBUG: Entering semi-annual block');
                 // Separate counts for Round 1 and Round 2
                 const round1Tested = trackableMeters.filter(m => m.testedRound1).length;
                 const round2Tested = trackableMeters.filter(m => m.testedRound2).length;
@@ -1677,6 +1680,175 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         }
         
         function startTestFromTracker(serialNumber) {
+            if (serialNumber) {
+                lookupSerial(serialNumber);
+            }
+        }
+
+        // ============================================
+        // FIND NEAREST METER
+        // ============================================
+        function showFindNearbyOptions() {
+            const modalHTML = `
+                <div id="findNearbyModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: var(--white); margin: 20px; border-radius: 16px; overflow: hidden; width: 100%; max-width: 350px;">
+                        <div style="background: var(--navy); color: white; padding: 16px; display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="margin: 0; font-size: 16px;">📍 Find Nearby Meter</h3>
+                            <button onclick="document.getElementById('findNearbyModal').remove()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">×</button>
+                        </div>
+                        <div style="padding: 16px;">
+                            <div onclick="document.getElementById('findNearbyModal').remove(); findNearestMeter('facility');" style="padding: 20px; background: var(--gray-100); border-radius: 12px; margin-bottom: 12px; cursor: pointer;">
+                                <div style="font-size: 24px; margin-bottom: 8px;">🏭</div>
+                                <div style="font-weight: 600; font-size: 16px;">Facility Meters</div>
+                                <div style="font-size: 13px; color: var(--gray-500);">All meters within 1 mile</div>
+                            </div>
+                            <div onclick="document.getElementById('findNearbyModal').remove(); findNearestMeter('specific');" style="padding: 20px; background: var(--gray-100); border-radius: 12px; cursor: pointer;">
+                                <div style="font-size: 24px; margin-bottom: 8px;">🎯</div>
+                                <div style="font-weight: 600; font-size: 16px;">Specific Meter</div>
+                                <div style="font-size: 13px; color: var(--gray-500);">Closest meter within 25 feet</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+        
+        function findNearestMeter(mode) {
+            if (!navigator.geolocation) {
+                showToast('GPS not supported on this device', 'error');
+                return;
+            }
+            
+            const maxDistance = mode === 'facility' ? 5280 : 25; // 1 mile or 25 feet
+            const maxResults = mode === 'facility' ? 50 : 1;
+            
+            showLoading('Getting your location...');
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const myLat = position.coords.latitude;
+                    const myLng = position.coords.longitude;
+                    
+                    document.getElementById('loadingText').textContent = 'Finding nearby meters...';
+                    
+                    // Get meters with GPS coordinates
+                    const metersWithGPS = assetDB.filter(a => {
+                        const gps = a['GPS Coordinates'];
+                        return gps && gps.includes(',');
+                    });
+                    
+                    if (metersWithGPS.length === 0) {
+                        hideLoading();
+                        showToast('No meters with GPS coordinates in database', 'error');
+                        return;
+                    }
+                    
+                    // Calculate distance to each meter
+                    const metersWithDistance = metersWithGPS.map(meter => {
+                        const gps = meter['GPS Coordinates'];
+                        const [lat, lng] = gps.split(',').map(s => parseFloat(s.trim()));
+                        const distance = calculateDistance(myLat, myLng, lat, lng);
+                        return { ...meter, distance, lat, lng };
+                    });
+                    
+                    // Filter by max distance and sort
+                    const nearbyMeters = metersWithDistance
+                        .filter(m => m.distance <= maxDistance)
+                        .sort((a, b) => a.distance - b.distance)
+                        .slice(0, maxResults);
+                    
+                    hideLoading();
+                    
+                    if (nearbyMeters.length === 0) {
+                        const radiusText = mode === 'facility' ? '1 mile' : '25 feet';
+                        showToast(`No meters found within ${radiusText}`, 'error');
+                        return;
+                    }
+                    
+                    showNearestMeters(nearbyMeters, myLat, myLng, mode);
+                },
+                (error) => {
+                    hideLoading();
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            showToast('GPS permission denied', 'error');
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            showToast('Location unavailable', 'error');
+                            break;
+                        case error.TIMEOUT:
+                            showToast('GPS timeout', 'error');
+                            break;
+                        default:
+                            showToast('GPS error', 'error');
+                    }
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 60000
+                }
+            );
+        }
+        
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            // Haversine formula for distance in feet
+            const R = 20902231; // Earth radius in feet
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+        
+        function formatDistance(feet) {
+            if (feet < 528) {
+                return Math.round(feet) + ' ft';
+            } else {
+                return (feet / 5280).toFixed(2) + ' mi';
+            }
+        }
+        
+        function showNearestMeters(meters, myLat, myLng, mode) {
+            const title = mode === 'facility' ? '🏭 Facility Meters (within 1 mile)' : '🎯 Specific Meter (within 25 ft)';
+            // Create modal content
+            const modalHTML = `
+                <div id="nearestModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; overflow-y: auto;">
+                    <div style="background: var(--white); margin: 20px; border-radius: 16px; overflow: hidden;">
+                        <div style="background: var(--navy); color: white; padding: 16px; display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="margin: 0; font-size: 16px;">${title}</h3>
+                            <button onclick="document.getElementById('nearestModal').remove()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">×</button>
+                        </div>
+                        <div style="padding: 12px;">
+                            <p style="font-size: 12px; color: var(--gray-500); margin-bottom: 12px;">Your location: ${myLat.toFixed(6)}, ${myLng.toFixed(6)}</p>
+                            ${meters.map((m, i) => `
+                                <div style="padding: 12px; border-bottom: 1px solid var(--gray-200); cursor: pointer;" onclick="selectNearestMeter('${String(m['Serial Number'] || '').replace(/'/g, "\\'")}')">
+                                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                                        <div>
+                                            <div style="font-weight: 600; font-family: 'JetBrains Mono', monospace;">${m['Serial Number'] || 'N/A'}</div>
+                                            <div style="font-size: 13px; color: var(--gray-600);">${m['Customer'] || ''}</div>
+                                            <div style="font-size: 12px; color: var(--gray-500);">${m['Facility/Location'] || ''}</div>
+                                        </div>
+                                        <div style="text-align: right;">
+                                            <div style="font-weight: 600; color: var(--teal);">${formatDistance(m.distance)}</div>
+                                            <div style="font-size: 11px; color: var(--gray-500);">#${i + 1}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+        
+        function selectNearestMeter(serialNumber) {
+            document.getElementById('nearestModal').remove();
             if (serialNumber) {
                 lookupSerial(serialNumber);
             }
