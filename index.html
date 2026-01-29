@@ -1662,7 +1662,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 }
                 
                 return `
-                    <div class="pending-item" style="cursor: pointer;" onclick="startTestFromTracker('${(m['Serial Number'] || '').replace(/'/g, "\\'")}')">
+                    <div class="pending-item" style="cursor: pointer;" onclick="startTestFromTracker('${String(m['Serial Number'] || '').replace(/'/g, "\\'")}')">
                         <div class="pending-info">
                             <h4 style="font-family: 'JetBrains Mono', monospace;">${m['Serial Number'] || 'N/A'}</h4>
                             <p>${m['Facility/Location'] || 'Unknown Location'} ${roundBadges}</p>
