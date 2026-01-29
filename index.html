@@ -1584,12 +1584,14 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             
             // Check if customer has any semi-annual meters
             const hasSemiAnnual = trackableMeters.some(m => m.frequency === 'Semi-Annual');
+            console.log('DEBUG: hasSemiAnnual =', hasSemiAnnual, 'trackableMeters count =', trackableMeters.length);
             
             // Calculate progress
             const totalMeters = trackableMeters.length;
             let summaryHTML = '';
             
             if (hasSemiAnnual) {
+                console.log('DEBUG: Entering semi-annual block');
                 // Separate counts for Round 1 and Round 2
                 const round1Tested = trackableMeters.filter(m => m.testedRound1).length;
                 const round2Tested = trackableMeters.filter(m => m.testedRound2).length;
