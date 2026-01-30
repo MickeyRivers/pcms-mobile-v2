@@ -1314,27 +1314,53 @@
         <section class="screen" id="trackerScreen">
             <div class="section-title">Testing Tracker</div>
             
+            <!-- Overall Summary -->
+            <div id="trackerOverallSummary" style="background: var(--navy); color: white; padding: 16px; border-radius: 12px; margin-bottom: 16px;">
+                <div style="text-align: center; margin-bottom: 12px;">
+                    <div style="font-size: 32px; font-weight: 700;" id="overallProgress">0%</div>
+                    <div style="font-size: 13px; color: var(--gray-400);">Overall Progress</div>
+                </div>
+                <div style="display: flex; justify-content: space-around; text-align: center;">
+                    <div>
+                        <div style="font-size: 20px; font-weight: 600; color: var(--gold);" id="overallDue">0</div>
+                        <div style="font-size: 11px; color: var(--gray-400);">Due</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 20px; font-weight: 600; color: var(--green);" id="overallComplete">0</div>
+                        <div style="font-size: 11px; color: var(--gray-400);">Complete</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 20px; font-weight: 600;" id="overallTotal">0</div>
+                        <div style="font-size: 11px; color: var(--gray-400);">Total</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Search -->
             <div class="form-group" style="margin-bottom: 16px;">
-                <select class="form-select" id="trackerCustomer" onchange="showCustomerMeters(this.value)">
-                    <option value="">Select Customer...</option>
-                </select>
+                <input type="text" class="form-input" id="trackerSearch" placeholder="Search customers..." oninput="filterTrackerCustomers(this.value)">
             </div>
             
-            <div id="trackerSummary" style="display: none; background: var(--white); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <h3 id="trackerCustomerName" style="font-size: 16px; margin: 0;">Customer</h3>
-                    <span id="trackerProgress" style="font-size: 14px; color: var(--teal); font-weight: 600;">0/0</span>
-                </div>
-                <div style="background: var(--gray-200); border-radius: 8px; height: 8px; overflow: hidden;">
-                    <div id="trackerProgressBar" style="background: var(--teal); height: 100%; width: 0%; transition: width 0.3s;"></div>
-                </div>
+            <!-- Customer List with Progress -->
+            <div id="trackerCustomerList" class="pending-list">
+                <!-- Populated by JS -->
             </div>
             
-            <div id="trackerMeters" class="pending-list">
-                <div class="empty-state">
-                    <div class="empty-state-icon">📊</div>
-                    <h3>Select a Customer</h3>
-                    <p>Choose a customer to see meters due for testing</p>
+            <!-- Customer Detail View (hidden initially) -->
+            <div id="trackerDetail" style="display: none;">
+                <button onclick="showTrackerDashboard()" style="background: none; border: none; color: var(--teal); font-size: 14px; cursor: pointer; margin-bottom: 12px;">← Back to all customers</button>
+                
+                <div id="trackerSummary" style="background: var(--white); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h3 id="trackerCustomerName" style="font-size: 16px; margin: 0;">Customer</h3>
+                        <span id="trackerProgress" style="font-size: 14px; color: var(--teal); font-weight: 600;">0/0</span>
+                    </div>
+                    <div style="background: var(--gray-200); border-radius: 8px; height: 8px; overflow: hidden;">
+                        <div id="trackerProgressBar" style="background: var(--teal); height: 100%; width: 0%; transition: width 0.3s;"></div>
+                    </div>
+                </div>
+                
+                <div id="trackerMeters" class="pending-list">
                 </div>
             </div>
         </section>
@@ -1766,25 +1792,155 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         // ============================================
         const TWICE_YEARLY_CUSTOMERS = ['New Braunfels Utilities', 'NBU', 'Johnson County SUD', 'Mid South', 'Guadalupe Blanco River Authority', 'GBRA'];
         
+        let allCustomerStats = [];
+        
         function initTracker() {
             // Get unique customers from AssetDB
             const customers = [...new Set(assetDB.map(a => a['Customer']).filter(c => c))].sort();
             
-            const select = document.getElementById('trackerCustomer');
-            select.innerHTML = '<option value="">Select Customer...</option>' + 
-                customers.map(c => `<option value="${c}">${c}</option>`).join('');
+            // Calculate stats for each customer
+            const currentYear = new Date().getFullYear();
+            const currentMonth = new Date().getMonth();
+            const currentRound = currentMonth < 6 ? 1 : 2;
+            
+            allCustomerStats = customers.map(customer => {
+                const customerMeters = assetDB.filter(a => a['Customer'] === customer);
+                const isSemiAnnual = TWICE_YEARLY_CUSTOMERS.some(c => 
+                    customer.toLowerCase().includes(c.toLowerCase())
+                );
+                
+                let due = 0;
+                let complete = 0;
+                
+                customerMeters.forEach(meter => {
+                    const serial = meter['Serial Number'];
+                    const assetFrequency = meter['Service Frequency'] || '';
+                    
+                    // Skip Call Outs
+                    if (assetFrequency === 'Call Out' || assetFrequency === 'None') return;
+                    
+                    const frequency = (!assetFrequency || assetFrequency === '') 
+                        ? (isSemiAnnual ? 'Semi-Annual' : 'Annual') 
+                        : assetFrequency;
+                    
+                    const tests = testHistory.filter(h => 
+                        String(h['Serial Number']) === String(serial)
+                    );
+                    
+                    const testsThisYear = tests.filter(t => {
+                        const testDate = new Date(t['Date Tested']);
+                        return testDate.getFullYear() === currentYear;
+                    });
+                    
+                    if (frequency === 'Semi-Annual') {
+                        const testedCurrentRound = testsThisYear.some(t => {
+                            const testDate = new Date(t['Date Tested']);
+                            return currentRound === 1 ? testDate.getMonth() < 6 : testDate.getMonth() >= 6;
+                        });
+                        if (testedCurrentRound) complete++;
+                        else due++;
+                    } else {
+                        if (testsThisYear.length > 0) complete++;
+                        else due++;
+                    }
+                });
+                
+                const total = due + complete;
+                const progress = total > 0 ? Math.round((complete / total) * 100) : 0;
+                
+                return { customer, due, complete, total, progress, isSemiAnnual };
+            }).filter(c => c.total > 0); // Only show customers with trackable meters
+            
+            // Sort by due (most due first)
+            allCustomerStats.sort((a, b) => b.due - a.due);
+            
+            renderTrackerDashboard();
+        }
+        
+        function renderTrackerDashboard() {
+            // Calculate overall stats
+            const totalDue = allCustomerStats.reduce((sum, c) => sum + c.due, 0);
+            const totalComplete = allCustomerStats.reduce((sum, c) => sum + c.complete, 0);
+            const totalMeters = allCustomerStats.reduce((sum, c) => sum + c.total, 0);
+            const overallProgress = totalMeters > 0 ? Math.round((totalComplete / totalMeters) * 100) : 0;
+            
+            document.getElementById('overallProgress').textContent = overallProgress + '%';
+            document.getElementById('overallDue').textContent = totalDue;
+            document.getElementById('overallComplete').textContent = totalComplete;
+            document.getElementById('overallTotal').textContent = totalMeters;
+            
+            renderCustomerList(allCustomerStats);
+        }
+        
+        function renderCustomerList(customers) {
+            const listDiv = document.getElementById('trackerCustomerList');
+            
+            if (customers.length === 0) {
+                listDiv.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📊</div>
+                        <h3>No Customers Found</h3>
+                        <p>No matching customers</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            listDiv.innerHTML = customers.map(c => {
+                const progressColor = c.progress === 100 ? 'var(--green)' : (c.progress > 50 ? 'var(--teal)' : 'var(--gold)');
+                const semiAnnualBadge = c.isSemiAnnual ? '<span style="font-size: 10px; background: var(--teal); color: white; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">2x/yr</span>' : '';
+                
+                return `
+                    <div class="pending-item" style="cursor: pointer;" onclick="showCustomerDetail('${c.customer.replace(/'/g, "\\'")}')">
+                        <div class="pending-info" style="flex: 1;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                                <h4 style="margin: 0; font-size: 14px;">${c.customer}${semiAnnualBadge}</h4>
+                                <span style="font-size: 13px; font-weight: 600; color: ${progressColor};">${c.progress}%</span>
+                            </div>
+                            <div style="background: var(--gray-200); border-radius: 4px; height: 6px; overflow: hidden; margin-bottom: 4px;">
+                                <div style="background: ${progressColor}; height: 100%; width: ${c.progress}%;"></div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--gray-500);">
+                                <span><strong style="color: var(--gold);">${c.due}</strong> due</span>
+                                <span><strong style="color: var(--green);">${c.complete}</strong> complete</span>
+                                <span>${c.total} total</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function filterTrackerCustomers(searchTerm) {
+            if (!searchTerm || searchTerm.trim() === '') {
+                renderCustomerList(allCustomerStats);
+                return;
+            }
+            
+            const term = searchTerm.toLowerCase().trim();
+            const filtered = allCustomerStats.filter(c => 
+                c.customer.toLowerCase().includes(term)
+            );
+            renderCustomerList(filtered);
+        }
+        
+        function showCustomerDetail(customer) {
+            document.getElementById('trackerCustomerList').style.display = 'none';
+            document.getElementById('trackerOverallSummary').style.display = 'none';
+            document.getElementById('trackerSearch').style.display = 'none';
+            document.getElementById('trackerDetail').style.display = 'block';
+            showCustomerMeters(customer);
+        }
+        
+        function showTrackerDashboard() {
+            document.getElementById('trackerCustomerList').style.display = 'block';
+            document.getElementById('trackerOverallSummary').style.display = 'block';
+            document.getElementById('trackerSearch').style.display = 'block';
+            document.getElementById('trackerDetail').style.display = 'none';
         }
         
         function showCustomerMeters(customer) {
             if (!customer) {
-                document.getElementById('trackerSummary').style.display = 'none';
-                document.getElementById('trackerMeters').innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📊</div>
-                        <h3>Select a Customer</h3>
-                        <p>Choose a customer to see meters due for testing</p>
-                    </div>
-                `;
                 return;
             }
             
@@ -2317,6 +2473,13 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 startCamera();
             } else {
                 stopCamera();
+            }
+            
+            // Reset tracker to dashboard view when entering
+            if (screenId === 'trackerScreen') {
+                showTrackerDashboard();
+                document.getElementById('trackerSearch').value = '';
+                initTracker(); // Refresh data
             }
             
             // Update pending count
