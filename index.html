@@ -1800,6 +1800,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             
             // Calculate stats for each customer
             const currentYear = new Date().getFullYear();
+            const previousYear = currentYear - 1;
             const currentMonth = new Date().getMonth();
             const currentRound = currentMonth < 6 ? 1 : 2;
             
@@ -1811,6 +1812,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 
                 let due = 0;
                 let complete = 0;
+                let earliestTestMonth = 12; // Default to December (last)
                 
                 customerMeters.forEach(meter => {
                     const serial = meter['Serial Number'];
@@ -1826,6 +1828,20 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     const tests = testHistory.filter(h => 
                         String(h['Serial Number']) === String(serial)
                     );
+                    
+                    // Find tests from previous year to determine typical test timing
+                    const testsPrevYear = tests.filter(t => {
+                        const testDate = new Date(t['Date Tested']);
+                        return testDate.getFullYear() === previousYear;
+                    });
+                    
+                    // Track earliest test month from previous year
+                    testsPrevYear.forEach(t => {
+                        const testMonth = new Date(t['Date Tested']).getMonth();
+                        if (testMonth < earliestTestMonth) {
+                            earliestTestMonth = testMonth;
+                        }
+                    });
                     
                     const testsThisYear = tests.filter(t => {
                         const testDate = new Date(t['Date Tested']);
@@ -1848,11 +1864,20 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 const total = due + complete;
                 const progress = total > 0 ? Math.round((complete / total) * 100) : 0;
                 
-                return { customer, due, complete, total, progress, isSemiAnnual };
+                // Get month name for display
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const typicalMonth = earliestTestMonth < 12 ? monthNames[earliestTestMonth] : null;
+                
+                return { customer, due, complete, total, progress, isSemiAnnual, earliestTestMonth, typicalMonth };
             }).filter(c => c.total > 0); // Only show customers with trackable meters
             
-            // Sort by due (most due first)
-            allCustomerStats.sort((a, b) => b.due - a.due);
+            // Sort by earliest test month from previous year (upcoming tests first)
+            allCustomerStats.sort((a, b) => {
+                // Customers with no previous year data go to end
+                if (a.earliestTestMonth === 12 && b.earliestTestMonth < 12) return 1;
+                if (b.earliestTestMonth === 12 && a.earliestTestMonth < 12) return -1;
+                return a.earliestTestMonth - b.earliestTestMonth;
+            });
             
             renderTrackerDashboard();
         }
@@ -1889,12 +1914,13 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             listDiv.innerHTML = customers.map(c => {
                 const progressColor = c.progress === 100 ? 'var(--green)' : (c.progress > 50 ? 'var(--teal)' : 'var(--gold)');
                 const semiAnnualBadge = c.isSemiAnnual ? '<span style="font-size: 10px; background: var(--teal); color: white; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">2x/yr</span>' : '';
+                const monthBadge = c.typicalMonth ? `<span style="font-size: 10px; background: var(--gray-200); color: var(--gray-600); padding: 2px 6px; border-radius: 4px; margin-left: 4px;">${c.typicalMonth}</span>` : '';
                 
                 return `
                     <div class="pending-item" style="cursor: pointer;" onclick="showCustomerDetail('${c.customer.replace(/'/g, "\\'")}')">
                         <div class="pending-info" style="flex: 1;">
                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-                                <h4 style="margin: 0; font-size: 14px;">${c.customer}${semiAnnualBadge}</h4>
+                                <h4 style="margin: 0; font-size: 14px;">${c.customer}${semiAnnualBadge}${monthBadge}</h4>
                                 <span style="font-size: 13px; font-weight: 600; color: ${progressColor};">${c.progress}%</span>
                             </div>
                             <div style="background: var(--gray-200); border-radius: 4px; height: 6px; overflow: hidden; margin-bottom: 4px;">
