@@ -1241,7 +1241,12 @@
 
                 <div class="form-group">
                     <label class="form-label">Notes</label>
-                    <textarea class="form-textarea" id="formNotes" placeholder="Additional notes..."></textarea>
+                    <textarea class="form-textarea" id="formNotes" placeholder="Additional notes (appears on certificate)..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Tech Notes (Internal Only)</label>
+                    <textarea class="form-textarea" id="formTechNotes" placeholder="Internal notes - will NOT appear on certificate..." style="background: #fff9e6; border-color: var(--gold);"></textarea>
                 </div>
 
                 <div class="form-group">
@@ -2756,6 +2761,9 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         // FORM HANDLING
         // ============================================
         function resetForm() {
+            // Clear editing state
+            editingTestId = null;
+            
             // Hide match card
             document.getElementById('matchCard').style.display = 'none';
             
@@ -2950,6 +2958,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 calibration: document.getElementById('formCalibration').value.trim(),
                 programming: document.getElementById('formProgramming').value.trim(),
                 notes: document.getElementById('formNotes').value.trim(),
+                techNotes: document.getElementById('formTechNotes').value.trim(),
                 testedBy: document.getElementById('formTestedBy').value.trim(),
                 photos: photos.filter(p => p !== null)
             };
@@ -2995,13 +3004,118 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     break;
             }
             
-            // Save to pending
-            pendingTests.push(testRecord);
+            // Save to pending (or update existing)
+            if (editingTestId) {
+                // Update existing test
+                const index = pendingTests.findIndex(t => t.id === editingTestId);
+                if (index !== -1) {
+                    testRecord.id = editingTestId;
+                    pendingTests[index] = testRecord;
+                }
+                editingTestId = null;
+            } else {
+                // Add new test
+                pendingTests.push(testRecord);
+            }
             savePendingTests();
             
+            // Reset form for next entry
+            resetForm();
+            
             showToast('Test saved! Ready to sync when online.', 'success');
-            showScreen('homeScreen');
+            showScreen('pendingScreen');
             updatePendingCount();
+        }
+
+        let editingTestId = null;
+        
+        function editPendingTest(testId) {
+            const test = pendingTests.find(t => t.id === testId);
+            if (!test) return;
+            
+            editingTestId = testId;
+            showScreen('formScreen');
+            
+            // Populate form with test data
+            document.getElementById('formCustomer').value = test.customer || '';
+            document.getElementById('formLocation').value = test.location || '';
+            document.getElementById('formGPS').value = test.gpsCoordinates || '';
+            document.getElementById('formSerial').value = test.serialNumber || '';
+            document.getElementById('formManufacturer').value = test.manufacturer || '';
+            document.getElementById('formWaterType').value = test.waterType || '';
+            document.getElementById('formServiceFrequency').value = test.serviceFrequency || 'Annual';
+            document.getElementById('formMeterReading').value = test.meterReading || '';
+            document.getElementById('formCalibration').value = test.calibration || '';
+            document.getElementById('formProgramming').value = test.programming || '';
+            document.getElementById('formNotes').value = test.notes || '';
+            document.getElementById('formTechNotes').value = test.techNotes || '';
+            document.getElementById('formTestedBy').value = test.testedBy || 'Mick Bartlett';
+            
+            // Set startup toggle
+            isStartup = test.isStartup || false;
+            document.getElementById('formStartup').checked = isStartup;
+            toggleStartup();
+            
+            // Select service type
+            if (test.serviceType) {
+                const option = document.querySelector(`.service-type-option[data-type="${test.serviceType}"]`);
+                if (option) {
+                    selectServiceType(option);
+                }
+            }
+            
+            // Populate service-specific fields
+            switch (test.serviceType) {
+                case 'Closed Pipe':
+                    document.getElementById('formPipeMaterial').value = test.pipeMaterial || '';
+                    document.getElementById('formPipeSize').value = test.pipeSize || '';
+                    document.getElementById('formMethodCP').value = test.method || '';
+                    document.getElementById('formValFlowBefore').value = test.valFlowBefore || '';
+                    document.getElementById('formCusFlowBefore').value = test.cusFlowBefore || '';
+                    document.getElementById('formValFlowAfter').value = test.valFlowAfter || '';
+                    document.getElementById('formCusFlowAfter').value = test.cusFlowAfter || '';
+                    break;
+                case 'Open Channel':
+                    document.getElementById('formDeviceType').value = test.deviceType || '';
+                    document.getElementById('formRange').value = test.range || '';
+                    document.getElementById('formUnitsOC').value = test.units || '';
+                    document.getElementById('formMethodOC').value = test.method || '';
+                    document.getElementById('formLevelChannelBefore').value = test.levelChannelBefore || '';
+                    document.getElementById('formLevelMeterBefore').value = test.levelMeterBefore || '';
+                    document.getElementById('formLevelChannelAfter').value = test.levelChannelAfter || '';
+                    document.getElementById('formLevelMeterAfter').value = test.levelMeterAfter || '';
+                    break;
+                case 'Loop Test':
+                    document.getElementById('formLowDesired').value = test.lowDesired || '';
+                    document.getElementById('formLowMeasured').value = test.lowMeasured || '';
+                    document.getElementById('formMidDesired').value = test.midDesired || '';
+                    document.getElementById('formMidMeasured').value = test.midMeasured || '';
+                    document.getElementById('formHighDesired').value = test.highDesired || '';
+                    document.getElementById('formHighMeasured').value = test.highMeasured || '';
+                    break;
+                case 'Chart Recorder':
+                    document.getElementById('formMeasurementType').value = test.measurementType || '';
+                    document.getElementById('formMeterBefore').value = test.meterBefore || '';
+                    document.getElementById('formChartBefore').value = test.chartBefore || '';
+                    document.getElementById('formMeterAfter').value = test.meterAfter || '';
+                    document.getElementById('formChartAfter').value = test.chartAfter || '';
+                    break;
+            }
+            
+            // Load photos
+            photos = test.photos ? [...test.photos, null, null, null].slice(0, 3) : [null, null, null];
+            document.querySelectorAll('.photo-slot').forEach((slot, i) => {
+                if (photos[i]) {
+                    slot.innerHTML = `
+                        <img src="${photos[i]}" alt="Photo ${i + 1}">
+                        <button class="remove-photo" onclick="removePhoto(${i}, event)">×</button>
+                    `;
+                } else {
+                    slot.innerHTML = '<span class="add-icon">+</span>';
+                }
+            });
+            
+            showToast('Editing test - make changes and save', 'info');
         }
 
         function loadPendingTests() {
@@ -3053,14 +3167,26 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             }
             
             list.innerHTML = pendingTests.map(test => `
-                <div class="pending-item">
+                <div class="pending-item" style="cursor: pointer;" onclick="editPendingTest('${test.id}')">
                     <div class="pending-info">
                         <h4>${test.customer}</h4>
                         <p>${test.location} • ${test.serviceType}${test.isStartup ? ' (Startup)' : ''}</p>
+                        <p style="font-size: 11px; color: var(--gray-500);">Tap to edit</p>
                     </div>
-                    <span class="pending-status waiting">Waiting</span>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                        <span class="pending-status waiting">Waiting</span>
+                        <button onclick="event.stopPropagation(); deletePendingTest('${test.id}')" style="background: none; border: none; color: var(--gray-400); font-size: 18px; cursor: pointer;">🗑️</button>
+                    </div>
                 </div>
             `).join('');
+        }
+        
+        function deletePendingTest(testId) {
+            if (confirm('Delete this test?')) {
+                pendingTests = pendingTests.filter(t => t.id !== testId);
+                savePendingTests();
+                showToast('Test deleted', 'info');
+            }
         }
 
         const CLOUD_FUNCTION_URL = 'https://generate-certificate-980517620937.us-central1.run.app';
