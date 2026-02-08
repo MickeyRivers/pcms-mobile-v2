@@ -1317,7 +1317,10 @@
 
         <!-- Tracker Screen -->
         <section class="screen" id="trackerScreen">
-            <div class="section-title">Testing Calendar</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div class="section-title" style="margin: 0;">Testing Calendar</div>
+                <button onclick="refreshTrackerData()" style="background: var(--teal); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;">🔄 Refresh</button>
+            </div>
             
             <!-- Overall Summary -->
             <div id="trackerOverallSummary" style="background: var(--navy); color: white; padding: 16px; border-radius: 12px; margin-bottom: 16px;">
@@ -2052,6 +2055,23 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             document.getElementById('trackerSearch').style.display = 'none';
             document.getElementById('trackerDetail').style.display = 'block';
             showCustomerMeters(customer);
+        }
+        
+        async function refreshTrackerData() {
+            showLoading('Refreshing data...');
+            try {
+                // Reload test history from server
+                await loadTestHistory();
+                // Reload asset DB
+                await loadAssetDB();
+                // Reinitialize tracker
+                initTracker();
+                hideLoading();
+                showToast('Data refreshed!', 'success');
+            } catch (error) {
+                hideLoading();
+                showToast('Error refreshing data', 'error');
+            }
         }
         
         function showCustomerMeters(customer) {
