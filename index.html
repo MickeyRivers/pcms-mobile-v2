@@ -1824,8 +1824,8 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     const assetFrequency = meter['Service Frequency'] || '';
                     const assetStatus = meter['Status'] || 'Active';
                     
-                    // Skip inactive/decommissioned meters and Call Outs
-                    if (assetStatus === 'Inactive' || assetStatus === 'Decommissioned') return;
+                    // Skip inactive/decommissioned/faulty meters and Call Outs
+                    if (assetStatus === 'Inactive' || assetStatus === 'Decommissioned' || assetStatus === 'Faulty, Could Not Test') return;
                     if (assetFrequency === 'Call Out' || assetFrequency === 'None') return;
                     
                     const frequency = (!assetFrequency || assetFrequency === '') 
