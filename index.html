@@ -3134,6 +3134,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 calibration: document.getElementById('formCalibration').value.trim(),
                 programming: document.getElementById('formProgramming').value.trim(),
                 notes: document.getElementById('formNotes').value.trim(),
+                accuracy: '', // Placeholder for accuracy column
                 techNotes: document.getElementById('formTechNotes').value.trim(),
                 testedBy: document.getElementById('formTestedBy').value.trim(),
                 photos: photos.filter(p => p !== null)
