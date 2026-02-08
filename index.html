@@ -1820,7 +1820,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 
                 let due = 0;
                 let complete = 0;
-                let testDays = []; // Collect all test days to calculate average
+                let testMonths = []; // Collect test months to find most common
                 
                 customerMeters.forEach(meter => {
                     const serial = meter['Serial Number'];
@@ -1835,9 +1835,10 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                         ? (isSemiAnnual ? 'Semi-Annual' : 'Annual') 
                         : assetFrequency;
                     
-                    const tests = testHistory.filter(h => 
+                    // Match by serial number, but skip blank serial matching for date calculation
+                    const tests = serial ? testHistory.filter(h => 
                         String(h['Serial Number']) === String(serial)
-                    );
+                    ) : [];
                     
                     // Find tests from previous year to determine typical test timing
                     const testsPrevYear = tests.filter(t => {
@@ -1845,13 +1846,10 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                         return testDate.getFullYear() === previousYear;
                     });
                     
-                    // Collect day-of-year for each test (for averaging)
+                    // Collect month for each test (for finding most common month)
                     testsPrevYear.forEach(t => {
                         const testDate = new Date(t['Date']);
-                        const startOfYear = new Date(testDate.getFullYear(), 0, 0);
-                        const diff = testDate - startOfYear;
-                        const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
-                        testDays.push(dayOfYear);
+                        testMonths.push(testDate.getMonth());
                     });
                     
                     const testsThisYear = tests.filter(t => {
@@ -1886,28 +1884,23 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 const total = due + complete;
                 const progress = total > 0 ? Math.round((complete / total) * 100) : 0;
                 
-                // Calculate average test date
-                let avgMonth = 11; // Default to December
-                let avgDay = 15;
-                if (testDays.length > 0) {
-                    const avgDayOfYear = Math.round(testDays.reduce((a, b) => a + b, 0) / testDays.length);
-                    // Convert day of year back to month/day
-                    const tempDate = new Date(currentYear, 0, avgDayOfYear);
-                    avgMonth = tempDate.getMonth();
-                    avgDay = tempDate.getDate();
+                // Find most common test month (mode)
+                let typicalMonth = 11; // Default to December
+                if (testMonths.length > 0) {
+                    const monthCounts = {};
+                    testMonths.forEach(m => { monthCounts[m] = (monthCounts[m] || 0) + 1; });
+                    typicalMonth = parseInt(Object.keys(monthCounts).reduce((a, b) => monthCounts[a] > monthCounts[b] ? a : b));
                 }
                 
                 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                const typicalDate = testDays.length > 0 ? `${monthNames[avgMonth]} ${avgDay}` : null;
+                const typicalDate = testMonths.length > 0 ? monthNames[typicalMonth] : null;
                 
-                return { customer, due, complete, total, progress, isSemiAnnual, avgMonth, avgDay, typicalDate };
+                return { customer, due, complete, total, progress, isSemiAnnual, typicalMonth, typicalDate };
             }).filter(c => c.total > 0); // Only show customers with trackable meters
             
-            // Sort by average test date
+            // Sort by typical test month
             allCustomerStats.sort((a, b) => {
-                const dayA = (a.avgMonth * 31) + a.avgDay;
-                const dayB = (b.avgMonth * 31) + b.avgDay;
-                return dayA - dayB;
+                return a.typicalMonth - b.typicalMonth;
             });
             
             renderTrackerDashboard();
@@ -1945,12 +1938,12 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             }
             
             customers.forEach(c => {
-                customersByMonth[c.avgMonth].push(c);
+                customersByMonth[c.typicalMonth].push(c);
             });
             
             // Sort customers within each month by day
             for (let i = 0; i < 12; i++) {
-                customersByMonth[i].sort((a, b) => a.avgDay - b.avgDay);
+                // customersByMonth already sorted by customer name within each month
             }
             
             let html = '';
