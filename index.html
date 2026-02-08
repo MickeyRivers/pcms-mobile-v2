@@ -1341,6 +1341,11 @@
                 </div>
             </div>
             
+            <!-- Search -->
+            <div class="form-group" style="margin-bottom: 16px;">
+                <input type="text" class="form-input" id="trackerSearch" placeholder="Search customers..." oninput="filterTrackerCalendar(this.value)">
+            </div>
+            
             <!-- Calendar View -->
             <div id="trackerCalendar" style="background: var(--white); border-radius: 12px; overflow: hidden;">
                 <!-- Populated by JS -->
@@ -2011,8 +2016,21 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             // Not used in calendar view but kept for compatibility
         }
         
+        function filterTrackerCalendar(searchTerm) {
+            if (!searchTerm || searchTerm.trim() === '') {
+                renderCalendarView(allCustomerStats);
+                return;
+            }
+            
+            const term = searchTerm.toLowerCase().trim();
+            const filtered = allCustomerStats.filter(c => 
+                c.customer.toLowerCase().includes(term)
+            );
+            renderCalendarView(filtered);
+        }
+        
         function showCustomerDetail(customer) {
-            document.getElementById('trackerCustomerList').style.display = 'none';
+            document.getElementById('trackerCalendar').style.display = 'none';
             document.getElementById('trackerOverallSummary').style.display = 'none';
             document.getElementById('trackerSearch').style.display = 'none';
             document.getElementById('trackerDetail').style.display = 'block';
@@ -2022,12 +2040,16 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         function showTrackerDashboard() {
             document.getElementById('trackerCalendar').style.display = 'block';
             document.getElementById('trackerOverallSummary').style.display = 'block';
+            document.getElementById('trackerSearch').style.display = 'block';
             document.getElementById('trackerDetail').style.display = 'none';
+            document.getElementById('trackerSearch').value = '';
+            renderCalendarView(allCustomerStats);
         }
         
         function showCustomerDetail(customer) {
             document.getElementById('trackerCalendar').style.display = 'none';
             document.getElementById('trackerOverallSummary').style.display = 'none';
+            document.getElementById('trackerSearch').style.display = 'none';
             document.getElementById('trackerDetail').style.display = 'block';
             showCustomerMeters(customer);
         }
