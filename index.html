@@ -1402,7 +1402,7 @@
         let isSettingPin = false;
         let newPinFirst = '';
         let pendingResetCode = '';
-        const RESET_CODE_URL = 'https://script.google.com/macros/s/AKfycbyEt84s-ewnmfTV7atLA6hqCKHAKkUCE7mRbuNfn3yW_WdpcdtEuj3SQ2clfIKDCF4XBA/exec';
+        const RESET_CODE_URL = 'https://script.google.com/macros/s/AKfycbwW93UDFh1y-psTu_gSP0HlVHy79QtTyOAKmEK6gY2c8qao1FzGh05x_OWqM4xRhvpU_A/exec';
 
         // ============================================
         // PIN SECURITY
@@ -1647,7 +1647,7 @@
         // ASSET DATABASE
         // ============================================
         async function loadAssetDB() {
-            const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbyEt84s-ewnmfTV7atLA6hqCKHAKkUCE7mRbuNfn3yW_WdpcdtEuj3SQ2clfIKDCF4XBA/exec';
+            const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbwW93UDFh1y-psTu_gSP0HlVHy79QtTyOAKmEK6gY2c8qao1FzGh05x_OWqM4xRhvpU_A/exec';
             
             // Try to fetch fresh data from Google Sheets
             try {
@@ -1685,7 +1685,7 @@
         }
 
         async function loadTestHistory() {
-            const HISTORY_URL = 'https://script.google.com/macros/s/AKfycbyEt84s-ewnmfTV7atLA6hqCKHAKkUCE7mRbuNfn3yW_WdpcdtEuj3SQ2clfIKDCF4XBA/exec?action=history';
+            const HISTORY_URL = 'https://script.google.com/macros/s/AKfycbwW93UDFh1y-psTu_gSP0HlVHy79QtTyOAKmEK6gY2c8qao1FzGh05x_OWqM4xRhvpU_A/exec?action=history';
             
             try {
                 const response = await fetch(HISTORY_URL);
@@ -1747,13 +1747,13 @@
                 
                 // Sort by date (most recent first)
                 matches.sort((a, b) => {
-                    const dateA = new Date(a['Date Tested'] || 0);
-                    const dateB = new Date(b['Date Tested'] || 0);
+                    const dateA = new Date(a['Date'] || 0);
+                    const dateB = new Date(b['Date'] || 0);
                     return dateB - dateA;
                 });
                 
                 resultsDiv.innerHTML = matches.slice(0, 20).map(h => {
-                    const date = h['Date Tested'] ? new Date(h['Date Tested']).toLocaleDateString() : 'Unknown';
+                    const date = h['Date'] ? new Date(h['Date']).toLocaleDateString() : 'Unknown';
                     return `
                         <div class="pending-item" style="cursor: pointer;" onclick="showHistoryDetail(${JSON.stringify(h).replace(/"/g, '&quot;')})">
                             <div class="pending-info">
@@ -1773,7 +1773,7 @@
         }
         
         function showHistoryDetail(record) {
-            const date = record['Date Tested'] ? new Date(record['Date Tested']).toLocaleDateString() : 'Unknown';
+            const date = record['Date'] ? new Date(record['Date']).toLocaleDateString() : 'Unknown';
             const details = `
 Serial Number: ${record['Serial Number'] || 'N/A'}
 Customer: ${record['Customer'] || 'N/A'}
@@ -1831,13 +1831,13 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     
                     // Find tests from previous year to determine typical test timing
                     const testsPrevYear = tests.filter(t => {
-                        const testDate = new Date(t['Date Tested']);
+                        const testDate = new Date(t['Date']);
                         return testDate.getFullYear() === previousYear;
                     });
                     
                     // Collect day-of-year for each test (for averaging)
                     testsPrevYear.forEach(t => {
-                        const testDate = new Date(t['Date Tested']);
+                        const testDate = new Date(t['Date']);
                         const startOfYear = new Date(testDate.getFullYear(), 0, 0);
                         const diff = testDate - startOfYear;
                         const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -1845,13 +1845,13 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     });
                     
                     const testsThisYear = tests.filter(t => {
-                        const testDate = new Date(t['Date Tested']);
+                        const testDate = new Date(t['Date']);
                         return testDate.getFullYear() === currentYear;
                     });
                     
                     if (frequency === 'Semi-Annual') {
                         const testedCurrentRound = testsThisYear.some(t => {
-                            const testDate = new Date(t['Date Tested']);
+                            const testDate = new Date(t['Date']);
                             return currentRound === 1 ? testDate.getMonth() < 6 : testDate.getMonth() >= 6;
                         });
                         if (testedCurrentRound) complete++;
@@ -2045,10 +2045,10 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 // Find all tests for this meter
                 const tests = testHistory.filter(h => 
                     String(h['Serial Number']) === String(serial)
-                ).sort((a, b) => new Date(b['Date Tested']) - new Date(a['Date Tested']));
+                ).sort((a, b) => new Date(b['Date']) - new Date(a['Date']));
                 
                 const lastTest = tests[0];
-                const lastTestDate = lastTest ? new Date(lastTest['Date Tested']) : null;
+                const lastTestDate = lastTest ? new Date(lastTest['Date']) : null;
                 
                 // Determine frequency
                 let frequency = assetFrequency;
@@ -2058,19 +2058,19 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 
                 // Check tests THIS YEAR
                 const testsThisYear = tests.filter(t => {
-                    const testDate = new Date(t['Date Tested']);
+                    const testDate = new Date(t['Date']);
                     return testDate.getFullYear() === currentYear;
                 });
                 
                 // Check Round 1 (Jan-Jun) this year
                 const testedRound1 = testsThisYear.some(t => {
-                    const testDate = new Date(t['Date Tested']);
+                    const testDate = new Date(t['Date']);
                     return testDate.getMonth() < 6;
                 });
                 
                 // Check Round 2 (Jul-Dec) this year
                 const testedRound2 = testsThisYear.some(t => {
-                    const testDate = new Date(t['Date Tested']);
+                    const testDate = new Date(t['Date']);
                     return testDate.getMonth() >= 6;
                 });
                 
