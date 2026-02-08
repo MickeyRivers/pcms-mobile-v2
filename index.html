@@ -1317,13 +1317,13 @@
 
         <!-- Tracker Screen -->
         <section class="screen" id="trackerScreen">
-            <div class="section-title">Testing Tracker</div>
+            <div class="section-title">Testing Calendar</div>
             
             <!-- Overall Summary -->
             <div id="trackerOverallSummary" style="background: var(--navy); color: white; padding: 16px; border-radius: 12px; margin-bottom: 16px;">
                 <div style="text-align: center; margin-bottom: 12px;">
                     <div style="font-size: 32px; font-weight: 700;" id="overallProgress">0%</div>
-                    <div style="font-size: 13px; color: var(--gray-400);">Overall Progress</div>
+                    <div style="font-size: 13px; color: var(--gray-400);">Overall Progress - <span id="currentYear">2026</span></div>
                 </div>
                 <div style="display: flex; justify-content: space-around; text-align: center;">
                     <div>
@@ -1341,19 +1341,14 @@
                 </div>
             </div>
             
-            <!-- Search -->
-            <div class="form-group" style="margin-bottom: 16px;">
-                <input type="text" class="form-input" id="trackerSearch" placeholder="Search customers..." oninput="filterTrackerCustomers(this.value)">
-            </div>
-            
-            <!-- Customer List with Progress -->
-            <div id="trackerCustomerList" class="pending-list">
+            <!-- Calendar View -->
+            <div id="trackerCalendar" style="background: var(--white); border-radius: 12px; overflow: hidden;">
                 <!-- Populated by JS -->
             </div>
             
             <!-- Customer Detail View (hidden initially) -->
             <div id="trackerDetail" style="display: none;">
-                <button onclick="showTrackerDashboard()" style="background: none; border: none; color: var(--teal); font-size: 14px; cursor: pointer; margin-bottom: 12px;">← Back to all customers</button>
+                <button onclick="showTrackerDashboard()" style="background: none; border: none; color: var(--teal); font-size: 14px; cursor: pointer; margin-bottom: 12px;">← Back to calendar</button>
                 
                 <div id="trackerSummary" style="background: var(--white); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -1817,7 +1812,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 
                 let due = 0;
                 let complete = 0;
-                let earliestTestMonth = 12; // Default to December (last)
+                let testDays = []; // Collect all test days to calculate average
                 
                 customerMeters.forEach(meter => {
                     const serial = meter['Serial Number'];
@@ -1840,12 +1835,13 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                         return testDate.getFullYear() === previousYear;
                     });
                     
-                    // Track earliest test month from previous year
+                    // Collect day-of-year for each test (for averaging)
                     testsPrevYear.forEach(t => {
-                        const testMonth = new Date(t['Date Tested']).getMonth();
-                        if (testMonth < earliestTestMonth) {
-                            earliestTestMonth = testMonth;
-                        }
+                        const testDate = new Date(t['Date Tested']);
+                        const startOfYear = new Date(testDate.getFullYear(), 0, 0);
+                        const diff = testDate - startOfYear;
+                        const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+                        testDays.push(dayOfYear);
                     });
                     
                     const testsThisYear = tests.filter(t => {
@@ -1869,19 +1865,28 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 const total = due + complete;
                 const progress = total > 0 ? Math.round((complete / total) * 100) : 0;
                 
-                // Get month name for display
-                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                const typicalMonth = earliestTestMonth < 12 ? monthNames[earliestTestMonth] : null;
+                // Calculate average test date
+                let avgMonth = 11; // Default to December
+                let avgDay = 15;
+                if (testDays.length > 0) {
+                    const avgDayOfYear = Math.round(testDays.reduce((a, b) => a + b, 0) / testDays.length);
+                    // Convert day of year back to month/day
+                    const tempDate = new Date(currentYear, 0, avgDayOfYear);
+                    avgMonth = tempDate.getMonth();
+                    avgDay = tempDate.getDate();
+                }
                 
-                return { customer, due, complete, total, progress, isSemiAnnual, earliestTestMonth, typicalMonth };
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const typicalDate = testDays.length > 0 ? `${monthNames[avgMonth]} ${avgDay}` : null;
+                
+                return { customer, due, complete, total, progress, isSemiAnnual, avgMonth, avgDay, typicalDate };
             }).filter(c => c.total > 0); // Only show customers with trackable meters
             
-            // Sort by earliest test month from previous year (upcoming tests first)
+            // Sort by average test date
             allCustomerStats.sort((a, b) => {
-                // Customers with no previous year data go to end
-                if (a.earliestTestMonth === 12 && b.earliestTestMonth < 12) return 1;
-                if (b.earliestTestMonth === 12 && a.earliestTestMonth < 12) return -1;
-                return a.earliestTestMonth - b.earliestTestMonth;
+                const dayA = (a.avgMonth * 31) + a.avgDay;
+                const dayB = (b.avgMonth * 31) + b.avgDay;
+                return dayA - dayB;
             });
             
             renderTrackerDashboard();
@@ -1889,70 +1894,108 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         
         function renderTrackerDashboard() {
             // Calculate overall stats
+            const currentYear = new Date().getFullYear();
             const totalDue = allCustomerStats.reduce((sum, c) => sum + c.due, 0);
             const totalComplete = allCustomerStats.reduce((sum, c) => sum + c.complete, 0);
             const totalMeters = allCustomerStats.reduce((sum, c) => sum + c.total, 0);
             const overallProgress = totalMeters > 0 ? Math.round((totalComplete / totalMeters) * 100) : 0;
             
+            document.getElementById('currentYear').textContent = currentYear;
             document.getElementById('overallProgress').textContent = overallProgress + '%';
             document.getElementById('overallDue').textContent = totalDue;
             document.getElementById('overallComplete').textContent = totalComplete;
             document.getElementById('overallTotal').textContent = totalMeters;
             
-            renderCustomerList(allCustomerStats);
+            renderCalendarView(allCustomerStats);
         }
         
-        function renderCustomerList(customers) {
-            const listDiv = document.getElementById('trackerCustomerList');
+        function renderCalendarView(customers) {
+            const calendarDiv = document.getElementById('trackerCalendar');
+            const currentMonth = new Date().getMonth();
+            const currentDay = new Date().getDate();
             
-            if (customers.length === 0) {
-                listDiv.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📊</div>
-                        <h3>No Customers Found</h3>
-                        <p>No matching customers</p>
-                    </div>
-                `;
-                return;
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                               'July', 'August', 'September', 'October', 'November', 'December'];
+            
+            // Group customers by month
+            const customersByMonth = {};
+            for (let i = 0; i < 12; i++) {
+                customersByMonth[i] = [];
             }
             
-            listDiv.innerHTML = customers.map(c => {
-                const progressColor = c.progress === 100 ? 'var(--green)' : (c.progress > 50 ? 'var(--teal)' : 'var(--gold)');
-                const semiAnnualBadge = c.isSemiAnnual ? '<span style="font-size: 10px; background: var(--teal); color: white; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">2x/yr</span>' : '';
-                const monthBadge = c.typicalMonth ? `<span style="font-size: 10px; background: var(--gray-200); color: var(--gray-600); padding: 2px 6px; border-radius: 4px; margin-left: 4px;">${c.typicalMonth}</span>` : '';
+            customers.forEach(c => {
+                customersByMonth[c.avgMonth].push(c);
+            });
+            
+            // Sort customers within each month by day
+            for (let i = 0; i < 12; i++) {
+                customersByMonth[i].sort((a, b) => a.avgDay - b.avgDay);
+            }
+            
+            let html = '';
+            
+            for (let month = 0; month < 12; month++) {
+                const monthCustomers = customersByMonth[month];
+                const isCurrentMonth = month === currentMonth;
+                const isPastMonth = month < currentMonth;
                 
-                return `
-                    <div class="pending-item" style="cursor: pointer;" onclick="showCustomerDetail('${c.customer.replace(/'/g, "\\'")}')">
-                        <div class="pending-info" style="flex: 1;">
-                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-                                <h4 style="margin: 0; font-size: 14px;">${c.customer}${semiAnnualBadge}${monthBadge}</h4>
-                                <span style="font-size: 13px; font-weight: 600; color: ${progressColor};">${c.progress}%</span>
-                            </div>
-                            <div style="background: var(--gray-200); border-radius: 4px; height: 6px; overflow: hidden; margin-bottom: 4px;">
-                                <div style="background: ${progressColor}; height: 100%; width: ${c.progress}%;"></div>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--gray-500);">
-                                <span><strong style="color: var(--gold);">${c.due}</strong> due</span>
-                                <span><strong style="color: var(--green);">${c.complete}</strong> complete</span>
-                                <span>${c.total} total</span>
-                            </div>
+                // Check if all customers in this month are complete
+                const allComplete = monthCustomers.length > 0 && monthCustomers.every(c => c.progress === 100);
+                const monthDue = monthCustomers.reduce((sum, c) => sum + c.due, 0);
+                
+                let monthStyle = 'background: var(--gray-100);';
+                if (isCurrentMonth) {
+                    monthStyle = 'background: var(--gold); background: linear-gradient(135deg, var(--gold) 0%, #e6b84d 100%);';
+                } else if (isPastMonth && allComplete) {
+                    monthStyle = 'background: var(--green); color: white;';
+                } else if (isPastMonth && monthDue > 0) {
+                    monthStyle = 'background: #ffebee;'; // Light red for overdue
+                }
+                
+                html += `
+                    <div style="border-bottom: 1px solid var(--gray-200);">
+                        <div style="padding: 12px 16px; ${monthStyle} display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: 600; ${isCurrentMonth ? 'color: var(--navy);' : ''}">${monthNames[month]}</span>
+                            <span style="font-size: 12px; ${isPastMonth && allComplete ? 'color: white;' : 'color: var(--gray-500);'}">
+                                ${monthCustomers.length > 0 ? `${monthCustomers.filter(c => c.progress === 100).length}/${monthCustomers.length} complete` : 'No tests scheduled'}
+                            </span>
                         </div>
-                    </div>
                 `;
-            }).join('');
+                
+                if (monthCustomers.length > 0) {
+                    html += '<div style="padding: 8px;">';
+                    
+                    monthCustomers.forEach(c => {
+                        const progressColor = c.progress === 100 ? 'var(--green)' : (c.due > 0 && month < currentMonth ? '#ef5350' : 'var(--gold)');
+                        const statusIcon = c.progress === 100 ? '✓' : (c.due > 0 && month < currentMonth ? '⚠️' : '');
+                        const semiAnnualBadge = c.isSemiAnnual ? '<span style="font-size: 9px; background: var(--teal); color: white; padding: 1px 4px; border-radius: 3px; margin-left: 4px;">2x</span>' : '';
+                        
+                        html += `
+                            <div style="padding: 10px; margin: 4px 0; background: white; border-radius: 8px; border-left: 4px solid ${progressColor}; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="showCustomerDetail('${c.customer.replace(/'/g, "\\'")}')">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <div style="font-weight: 500; font-size: 13px;">${statusIcon} ${c.customer}${semiAnnualBadge}</div>
+                                        <div style="font-size: 11px; color: var(--gray-500);">~${c.typicalDate || 'TBD'} • ${c.complete}/${c.total} meters</div>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <div style="font-size: 16px; font-weight: 600; color: ${progressColor};">${c.progress}%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                }
+                
+                html += '</div>';
+            }
+            
+            calendarDiv.innerHTML = html;
         }
         
         function filterTrackerCustomers(searchTerm) {
-            if (!searchTerm || searchTerm.trim() === '') {
-                renderCustomerList(allCustomerStats);
-                return;
-            }
-            
-            const term = searchTerm.toLowerCase().trim();
-            const filtered = allCustomerStats.filter(c => 
-                c.customer.toLowerCase().includes(term)
-            );
-            renderCustomerList(filtered);
+            // Not used in calendar view but kept for compatibility
         }
         
         function showCustomerDetail(customer) {
@@ -1964,10 +2007,16 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         }
         
         function showTrackerDashboard() {
-            document.getElementById('trackerCustomerList').style.display = 'block';
+            document.getElementById('trackerCalendar').style.display = 'block';
             document.getElementById('trackerOverallSummary').style.display = 'block';
-            document.getElementById('trackerSearch').style.display = 'block';
             document.getElementById('trackerDetail').style.display = 'none';
+        }
+        
+        function showCustomerDetail(customer) {
+            document.getElementById('trackerCalendar').style.display = 'none';
+            document.getElementById('trackerOverallSummary').style.display = 'none';
+            document.getElementById('trackerDetail').style.display = 'block';
+            showCustomerMeters(customer);
         }
         
         function showCustomerMeters(customer) {
@@ -2509,7 +2558,6 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             // Reset tracker to dashboard view when entering
             if (screenId === 'trackerScreen') {
                 showTrackerDashboard();
-                document.getElementById('trackerSearch').value = '';
                 initTracker(); // Refresh data
             }
             
