@@ -2261,6 +2261,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                                 <select id="meterStatus" class="form-select" style="width: 100%;">
                                     <option value="Active" ${currentStatus === 'Active' ? 'selected' : ''}>Active</option>
                                     <option value="Inactive" ${currentStatus === 'Inactive' ? 'selected' : ''}>Inactive</option>
+                                    <option value="Faulty, Could Not Test" ${currentStatus === 'Faulty, Could Not Test' ? 'selected' : ''}>Faulty, Could Not Test</option>
                                     <option value="Decommissioned" ${currentStatus === 'Decommissioned' ? 'selected' : ''}>Decommissioned</option>
                                 </select>
                             </div>
