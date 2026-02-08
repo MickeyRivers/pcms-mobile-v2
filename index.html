@@ -1817,8 +1817,10 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 customerMeters.forEach(meter => {
                     const serial = meter['Serial Number'];
                     const assetFrequency = meter['Service Frequency'] || '';
+                    const assetStatus = meter['Status'] || 'Active';
                     
-                    // Skip Call Outs
+                    // Skip inactive/decommissioned meters and Call Outs
+                    if (assetStatus === 'Inactive' || assetStatus === 'Decommissioned') return;
                     if (assetFrequency === 'Call Out' || assetFrequency === 'None') return;
                     
                     const frequency = (!assetFrequency || assetFrequency === '') 
@@ -1856,7 +1858,18 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                         });
                         if (testedCurrentRound) complete++;
                         else due++;
+                    } else if (frequency === '2 Year' || frequency === '3 Year' || frequency === '4 Year' || frequency === '5 Year') {
+                        // Multi-year frequency - check if tested within the frequency period
+                        const years = parseInt(frequency);
+                        const cutoffYear = currentYear - years;
+                        const testedInPeriod = tests.some(t => {
+                            const testDate = new Date(t['Date']);
+                            return testDate.getFullYear() > cutoffYear;
+                        });
+                        if (testedInPeriod) complete++;
+                        else due++;
                     } else {
+                        // Annual
                         if (testsThisYear.length > 0) complete++;
                         else due++;
                     }
@@ -2196,16 +2209,108 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 }
                 
                 return `
-                    <div class="pending-item" style="cursor: pointer;" onclick="startTestFromTracker('${String(m['Serial Number'] || '').replace(/'/g, "\\'")}')">
+                    <div class="pending-item" style="cursor: pointer;" onclick="showMeterOptions('${String(m['Serial Number'] || '').replace(/'/g, "\\'")}', '${(m['Facility/Location'] || '').replace(/'/g, "\\'")}')">
                         <div class="pending-info">
                             <h4 style="font-family: 'JetBrains Mono', monospace;">${m['Serial Number'] || 'N/A'}</h4>
                             <p>${m['Facility/Location'] || 'Unknown Location'} ${roundBadges}</p>
-                            <p style="font-size: 11px; color: var(--gray-500);">Last tested: ${lastTestStr}</p>
+                            <p style="font-size: 11px; color: var(--gray-500);">Last tested: ${lastTestStr} • ${m.frequency || 'Annual'}</p>
                         </div>
                         <span class="pending-status" style="${statusClass}">${statusText}</span>
                     </div>
                 `;
             }).join('');
+        }
+        
+        function showMeterOptions(serialNumber, location) {
+            const meter = assetDB.find(a => String(a['Serial Number']) === String(serialNumber));
+            const currentStatus = meter ? (meter['Status'] || 'Active') : 'Active';
+            const currentFrequency = meter ? (meter['Service Frequency'] || 'Annual') : 'Annual';
+            
+            const modalHTML = `
+                <div id="meterOptionsModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: var(--white); margin: 20px; border-radius: 16px; overflow: hidden; width: 100%; max-width: 350px;">
+                        <div style="background: var(--navy); color: white; padding: 16px;">
+                            <h3 style="margin: 0; font-size: 14px;">${serialNumber}</h3>
+                            <p style="margin: 4px 0 0; font-size: 12px; opacity: 0.8;">${location}</p>
+                        </div>
+                        <div style="padding: 16px;">
+                            <div style="margin-bottom: 16px;">
+                                <label style="font-size: 12px; font-weight: 600; color: var(--gray-600); display: block; margin-bottom: 6px;">Status</label>
+                                <select id="meterStatus" class="form-select" style="width: 100%;">
+                                    <option value="Active" ${currentStatus === 'Active' ? 'selected' : ''}>Active</option>
+                                    <option value="Inactive" ${currentStatus === 'Inactive' ? 'selected' : ''}>Inactive</option>
+                                    <option value="Decommissioned" ${currentStatus === 'Decommissioned' ? 'selected' : ''}>Decommissioned</option>
+                                </select>
+                            </div>
+                            <div style="margin-bottom: 20px;">
+                                <label style="font-size: 12px; font-weight: 600; color: var(--gray-600); display: block; margin-bottom: 6px;">Service Frequency</label>
+                                <select id="meterFrequency" class="form-select" style="width: 100%;">
+                                    <option value="Semi-Annual" ${currentFrequency === 'Semi-Annual' ? 'selected' : ''}>Semi-Annual</option>
+                                    <option value="Annual" ${currentFrequency === 'Annual' ? 'selected' : ''}>Annual</option>
+                                    <option value="2 Year" ${currentFrequency === '2 Year' ? 'selected' : ''}>2 Year</option>
+                                    <option value="3 Year" ${currentFrequency === '3 Year' ? 'selected' : ''}>3 Year</option>
+                                    <option value="4 Year" ${currentFrequency === '4 Year' ? 'selected' : ''}>4 Year</option>
+                                    <option value="5 Year" ${currentFrequency === '5 Year' ? 'selected' : ''}>5 Year</option>
+                                    <option value="Call Out" ${currentFrequency === 'Call Out' ? 'selected' : ''}>Call Out (One-time)</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; gap: 12px;">
+                                <button onclick="document.getElementById('meterOptionsModal').remove()" style="flex: 1; padding: 12px; border: 1px solid var(--gray-300); background: white; border-radius: 8px; cursor: pointer;">Cancel</button>
+                                <button onclick="saveMeterSettings('${serialNumber.replace(/'/g, "\\'")}')" style="flex: 1; padding: 12px; background: var(--teal); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Save</button>
+                            </div>
+                            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--gray-200);">
+                                <button onclick="document.getElementById('meterOptionsModal').remove(); startTestFromTracker('${serialNumber.replace(/'/g, "\\'")}')" style="width: 100%; padding: 12px; background: var(--gold); color: var(--navy); border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">📝 Start Test</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+        
+        async function saveMeterSettings(serialNumber) {
+            const status = document.getElementById('meterStatus').value;
+            const frequency = document.getElementById('meterFrequency').value;
+            
+            document.getElementById('meterOptionsModal').remove();
+            showLoading('Saving...');
+            
+            try {
+                const response = await fetch(ASSETDB_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'updateMeterSettings',
+                        serialNumber: serialNumber,
+                        status: status,
+                        serviceFrequency: frequency
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Update local assetDB
+                    const meter = assetDB.find(a => String(a['Serial Number']) === String(serialNumber));
+                    if (meter) {
+                        meter['Status'] = status;
+                        meter['Service Frequency'] = frequency;
+                    }
+                    
+                    hideLoading();
+                    showToast('Settings saved', 'success');
+                    
+                    // Refresh tracker view
+                    initTracker();
+                } else {
+                    hideLoading();
+                    showToast('Error: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                hideLoading();
+                showToast('Error saving settings', 'error');
+            }
         }
         
         function startTestFromTracker(serialNumber) {
