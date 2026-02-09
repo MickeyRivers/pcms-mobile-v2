@@ -1410,7 +1410,7 @@
         let isSettingPin = false;
         let newPinFirst = '';
         let pendingResetCode = '';
-        const RESET_CODE_URL = 'https://script.google.com/macros/s/AKfycbzGbCUtIMnQYQmWJ1GOY_zT0HDHMU61M6_jfFJ9yc0y2kTSDFlNKWiff1txHPWFQuquVQ/exec';
+        const RESET_CODE_URL = 'https://script.google.com/macros/s/AKfycbyZaSdTzAN3Pksv0kKxkr_I4xWHwDeghjUENDlXw-VOpPhfNwlDWK8upC97cTcqhTzGHQ/exec';
 
         // ============================================
         // PIN SECURITY
@@ -1655,7 +1655,7 @@
         // ASSET DATABASE
         // ============================================
         async function loadAssetDB() {
-            const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbzGbCUtIMnQYQmWJ1GOY_zT0HDHMU61M6_jfFJ9yc0y2kTSDFlNKWiff1txHPWFQuquVQ/exec';
+            const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbyZaSdTzAN3Pksv0kKxkr_I4xWHwDeghjUENDlXw-VOpPhfNwlDWK8upC97cTcqhTzGHQ/exec';
             
             // Try to fetch fresh data from Google Sheets
             try {
@@ -1693,7 +1693,7 @@
         }
 
         async function loadTestHistory() {
-            const HISTORY_URL = 'https://script.google.com/macros/s/AKfycbzGbCUtIMnQYQmWJ1GOY_zT0HDHMU61M6_jfFJ9yc0y2kTSDFlNKWiff1txHPWFQuquVQ/exec?action=history';
+            const HISTORY_URL = 'https://script.google.com/macros/s/AKfycbyZaSdTzAN3Pksv0kKxkr_I4xWHwDeghjUENDlXw-VOpPhfNwlDWK8upC97cTcqhTzGHQ/exec?action=history';
             
             try {
                 const response = await fetch(HISTORY_URL);
@@ -3436,7 +3436,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         }
 
         const CLOUD_FUNCTION_URL = 'https://generate-certificate-980517620937.us-central1.run.app';
-        const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzGbCUtIMnQYQmWJ1GOY_zT0HDHMU61M6_jfFJ9yc0y2kTSDFlNKWiff1txHPWFQuquVQ/exec';
+        const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyZaSdTzAN3Pksv0kKxkr_I4xWHwDeghjUENDlXw-VOpPhfNwlDWK8upC97cTcqhTzGHQ/exec';
 
         async function syncPending() {
             if (pendingTests.length === 0) {
