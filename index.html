@@ -1904,12 +1904,21 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 return { customer, due, complete, total, progress, isSemiAnnual, typicalMonth, typicalDay, typicalDate };
             }).filter(c => c.total > 0); // Only show customers with trackable meters
             
-            // Sort by typical test date (month then day)
+            // Sort: incomplete first (by date), then complete (by date)
             allCustomerStats.sort((a, b) => {
+                // First, separate incomplete from complete
+                const aComplete = a.progress === 100;
+                const bComplete = b.progress === 100;
+                
+                if (aComplete !== bComplete) {
+                    return aComplete ? 1 : -1; // Incomplete first
+                }
+                
+                // Within each group, sort by date
                 if (a.typicalMonth !== b.typicalMonth) {
                     return a.typicalMonth - b.typicalMonth;
                 }
-                return a.typicalDay - b.typicalDay;
+                return (a.typicalDay || 1) - (b.typicalDay || 1);
             });
             
             renderTrackerDashboard();
