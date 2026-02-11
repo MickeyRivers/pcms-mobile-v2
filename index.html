@@ -922,13 +922,13 @@
                 </p>
             </div>
 
-            <div class="manual-entry">
+            <div class="manual-entry" style="position: relative;">
                 <p>Can't scan? Enter manually:</p>
                 <div class="form-group">
                     <input type="text" class="form-input" id="manualSerial" placeholder="Enter serial number" oninput="autoSearchSerial(this.value)">
                 </div>
-                <div id="serialSuggestions" style="display: none; max-height: 200px; overflow-y: auto; background: var(--white); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-top: -8px; margin-bottom: 12px;"></div>
-                <button class="btn btn-outline btn-block" onclick="lookupSerial(document.getElementById('manualSerial').value)">
+                <div id="serialSuggestions" style="display: none; max-height: 200px; overflow-y: auto; background: #ffffff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); margin-top: 4px; margin-bottom: 12px; position: absolute; left: 0; right: 0; z-index: 9999; border: 2px solid var(--teal);"></div>
+                <button class="btn btn-outline btn-block" style="margin-top: 60px;" onclick="lookupSerial(document.getElementById('manualSerial').value)">
                     Search AssetDB
                 </button>
             </div>
@@ -969,7 +969,7 @@
                 <div class="form-group">
                     <label class="form-label">GPS Coordinates</label>
                     <div style="display: flex; gap: 8px;">
-                        <input type="text" class="form-input" id="formGPS" placeholder="Tap button to capture" readonly style="flex: 1;">
+                        <input type="text" class="form-input" id="formGPS" placeholder="Lat, Long or tap to capture" style="flex: 1;">
                         <button type="button" class="btn btn-secondary" onclick="captureGPS()" style="padding: 12px 16px;">📍</button>
                     </div>
                 </div>
@@ -1910,11 +1910,10 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 const aComplete = a.progress === 100;
                 const bComplete = b.progress === 100;
                 
-                if (aComplete !== bComplete) {
-                    return aComplete ? 1 : -1; // Incomplete first
-                }
+                if (!aComplete && bComplete) return -1; // a incomplete, b complete -> a first
+                if (aComplete && !bComplete) return 1;  // a complete, b incomplete -> b first
                 
-                // Within each group, sort by date
+                // Both same completion status - sort by date
                 if (a.typicalMonth !== b.typicalMonth) {
                     return a.typicalMonth - b.typicalMonth;
                 }
