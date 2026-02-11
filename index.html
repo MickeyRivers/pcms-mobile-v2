@@ -3577,31 +3577,14 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                             gpsCoordinates: test.gpsCoordinates
                         };
                         
-                        const updateIframe = document.createElement('iframe');
-                        updateIframe.name = 'assetFrame' + i;
-                        updateIframe.style.display = 'none';
-                        document.body.appendChild(updateIframe);
+                        const assetResponse = await fetch(ASSETDB_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(assetData)
+                        });
                         
-                        const updateForm = document.createElement('form');
-                        updateForm.method = 'POST';
-                        updateForm.action = ASSETDB_URL;
-                        updateForm.target = updateIframe.name;
-                        
-                        const updateInput = document.createElement('input');
-                        updateInput.type = 'hidden';
-                        updateInput.name = 'data';
-                        updateInput.value = JSON.stringify(assetData);
-                        updateForm.appendChild(updateInput);
-                        
-                        document.body.appendChild(updateForm);
-                        updateForm.submit();
-                        
-                        setTimeout(() => {
-                            document.body.removeChild(updateForm);
-                            document.body.removeChild(updateIframe);
-                        }, 2000);
-                        
-                        console.log('AssetDB update sent');
+                        const assetResult = await assetResponse.json();
+                        console.log('AssetDB update result:', assetResult);
                     } catch (error) {
                         console.error(`Error updating AssetDB: ${error}`);
                     }
