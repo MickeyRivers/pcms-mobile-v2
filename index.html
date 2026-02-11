@@ -3555,12 +3555,27 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     console.error(`Error syncing to sheet: ${error}`);
                 }
                 
-                // 3. Update AssetDB with any new field data (if serial exists in DB)
+                // 3. Update AssetDB with any new field data (or create if not exists)
                 if (test.serialNumber) {
                     try {
-                        // Create a copy without photos
-                        const assetData = {...test};
-                        delete assetData.photos;
+                        // Create asset update data with action
+                        const assetData = {
+                            action: 'updateAsset',
+                            serialNumber: test.serialNumber,
+                            customer: test.customer,
+                            location: test.location,
+                            serviceType: test.serviceType,
+                            serviceFrequency: test.serviceFrequency,
+                            manufacturer: test.manufacturer,
+                            pipeMaterial: test.pipeMaterial,
+                            pipeSize: test.pipeSize,
+                            deviceType: test.deviceType,
+                            range: test.range,
+                            units: test.units,
+                            method: test.method,
+                            waterType: test.waterType,
+                            gpsCoordinates: test.gpsCoordinates
+                        };
                         
                         const updateIframe = document.createElement('iframe');
                         updateIframe.name = 'assetFrame' + i;
