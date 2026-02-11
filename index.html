@@ -2489,7 +2489,17 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     // Calculate distance to each meter
                     const metersWithDistance = metersWithGPS.map(meter => {
                         const gps = meter['GPS Coordinates'];
-                        const [lat, lng] = gps.split(',').map(s => parseFloat(s.trim()));
+                        // Strip N/S/E/W letters and parse coordinates
+                        const parts = gps.split(',').map(s => {
+                            const cleaned = s.trim().replace(/[NSEWnsew]/g, '').trim();
+                            let val = parseFloat(cleaned);
+                            // Make longitude negative if it had W
+                            if (s.toUpperCase().includes('W') && val > 0) val = -val;
+                            // Make latitude negative if it had S
+                            if (s.toUpperCase().includes('S') && val > 0) val = -val;
+                            return val;
+                        });
+                        const [lat, lng] = parts;
                         const distance = calculateDistance(myLat, myLng, lat, lng);
                         return { ...meter, distance, lat, lng };
                     });
