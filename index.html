@@ -2748,6 +2748,9 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             if (asset['Units']) {
                 document.getElementById('formUnitsOC').value = asset['Units'];
             }
+            if (asset['GPS Coordinates']) {
+                document.getElementById('formGPS').value = asset['GPS Coordinates'];
+            }
             
             showToast('Meter data loaded!', 'success');
         }
