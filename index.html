@@ -1025,10 +1025,10 @@
                     </div>
                 </div>
 
-                <div class="startup-toggle">
+                <div class="startup-toggle" onclick="document.getElementById('formStartup').click()">
                     <label>Startup (New Installation)</label>
                     <div class="toggle-switch">
-                        <input type="checkbox" id="formStartup" onchange="toggleStartup()">
+                        <input type="checkbox" id="formStartup" onchange="toggleStartup()" onclick="event.stopPropagation()">
                         <span class="toggle-slider"></span>
                     </div>
                 </div>
