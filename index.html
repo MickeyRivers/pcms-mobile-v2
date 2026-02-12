@@ -1418,7 +1418,7 @@
         let isSettingPin = false;
         let newPinFirst = '';
         let pendingResetCode = '';
-        const RESET_CODE_URL = 'https://script.google.com/macros/s/AKfycbylCjhUdLU-Pg5mfjl16Qsf4-9uin-ZgD4T2qxhvVnnQ0dv8kMDQ6EZTEcNxosLfEZFmg/exec';
+        const RESET_CODE_URL = 'https://script.google.com/macros/s/AKfycbyZaSdTzAN3Pksv0kKxkr_I4xWHwDeghjUENDlXw-VOpPhfNwlDWK8upC97cTcqhTzGHQ/exec';
 
         // ============================================
         // PIN SECURITY
@@ -1663,7 +1663,7 @@
         // ASSET DATABASE
         // ============================================
         async function loadAssetDB() {
-            const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbylCjhUdLU-Pg5mfjl16Qsf4-9uin-ZgD4T2qxhvVnnQ0dv8kMDQ6EZTEcNxosLfEZFmg/exec';
+            const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbyZaSdTzAN3Pksv0kKxkr_I4xWHwDeghjUENDlXw-VOpPhfNwlDWK8upC97cTcqhTzGHQ/exec';
             
             // Try to fetch fresh data from Google Sheets
             try {
@@ -1701,7 +1701,7 @@
         }
 
         async function loadTestHistory() {
-            const HISTORY_URL = 'https://script.google.com/macros/s/AKfycbylCjhUdLU-Pg5mfjl16Qsf4-9uin-ZgD4T2qxhvVnnQ0dv8kMDQ6EZTEcNxosLfEZFmg/exec?action=history';
+            const HISTORY_URL = 'https://script.google.com/macros/s/AKfycbyZaSdTzAN3Pksv0kKxkr_I4xWHwDeghjUENDlXw-VOpPhfNwlDWK8upC97cTcqhTzGHQ/exec?action=history';
             
             try {
                 const response = await fetch(HISTORY_URL);
@@ -2489,17 +2489,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     // Calculate distance to each meter
                     const metersWithDistance = metersWithGPS.map(meter => {
                         const gps = meter['GPS Coordinates'];
-                        // Strip N/S/E/W letters and parse coordinates
-                        const parts = gps.split(',').map(s => {
-                            const cleaned = s.trim().replace(/[NSEWnsew]/g, '').trim();
-                            let val = parseFloat(cleaned);
-                            // Make longitude negative if it had W
-                            if (s.toUpperCase().includes('W') && val > 0) val = -val;
-                            // Make latitude negative if it had S
-                            if (s.toUpperCase().includes('S') && val > 0) val = -val;
-                            return val;
-                        });
-                        const [lat, lng] = parts;
+                        const [lat, lng] = gps.split(',').map(s => parseFloat(s.trim()));
                         const distance = calculateDistance(myLat, myLng, lat, lng);
                         return { ...meter, distance, lat, lng };
                     });
@@ -2747,9 +2737,6 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             }
             if (asset['Units']) {
                 document.getElementById('formUnitsOC').value = asset['Units'];
-            }
-            if (asset['GPS Coordinates']) {
-                document.getElementById('formGPS').value = asset['GPS Coordinates'];
             }
             
             showToast('Meter data loaded!', 'success');
@@ -3471,8 +3458,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         }
 
         const CLOUD_FUNCTION_URL = 'https://generate-certificate-980517620937.us-central1.run.app';
-        const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbylCjhUdLU-Pg5mfjl16Qsf4-9uin-ZgD4T2qxhvVnnQ0dv8kMDQ6EZTEcNxosLfEZFmg/exec';
-        const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbylCjhUdLU-Pg5mfjl16Qsf4-9uin-ZgD4T2qxhvVnnQ0dv8kMDQ6EZTEcNxosLfEZFmg/exec';
+        const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyZaSdTzAN3Pksv0kKxkr_I4xWHwDeghjUENDlXw-VOpPhfNwlDWK8upC97cTcqhTzGHQ/exec';
 
         async function syncPending() {
             if (pendingTests.length === 0) {
@@ -3556,27 +3542,12 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     console.error(`Error syncing to sheet: ${error}`);
                 }
                 
-                // 3. Update AssetDB with any new field data (or create if not exists)
+                // 3. Update AssetDB with any new field data (if serial exists in DB)
                 if (test.serialNumber) {
                     try {
-                        // Create asset update data with action
-                        const assetData = {
-                            action: 'updateAsset',
-                            serialNumber: test.serialNumber,
-                            customer: test.customer,
-                            location: test.location,
-                            serviceType: test.serviceType,
-                            serviceFrequency: test.serviceFrequency,
-                            manufacturer: test.manufacturer,
-                            pipeMaterial: test.pipeMaterial,
-                            pipeSize: test.pipeSize,
-                            deviceType: test.deviceType,
-                            range: test.range,
-                            units: test.units,
-                            method: test.method,
-                            waterType: test.waterType,
-                            gpsCoordinates: test.gpsCoordinates
-                        };
+                        // Create a copy without photos
+                        const assetData = {...test};
+                        delete assetData.photos;
                         
                         const updateIframe = document.createElement('iframe');
                         updateIframe.name = 'assetFrame' + i;
