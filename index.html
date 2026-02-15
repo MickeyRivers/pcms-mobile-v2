@@ -1,488 +1,3467 @@
-import functions_framework
-from flask import jsonify, request
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.units import mm
-from reportlab.pdfgen import canvas
-from reportlab.lib.colors import HexColor
-import dropbox
-import os
-import io
-from datetime import datetime
-import base64
-from PIL import Image
-import json
-
-# Dropbox access token
-DROPBOX_ACCESS_TOKEN = os.environ.get('DROPBOX_ACCESS_TOKEN', 'sl.u.AGRXhHpIz_mJt0rkOdZChiiAS01VO_-GaqfLe1CYLYX8Nc2YFtrYpSAIFVpZ5lZ0v1q8GHBXTxQ79Dopgo1gH99TSYFgME-UdHy20GB4bERMqsnsoiYelKx0JU0Vo7Rekv1QXJd4X-COfnZesoSqstS_H9lFiHPfSk76hqhWuqUQk4uQ1iPtOFHeh4B00g3bB3h148It3kmKUTS4Eta5OM75imAnj8DdHhTjeCrJXA2B3pLuVs97hMrpEUqIku0ofEXfvRp4pB67gWumGoMcKMfsaYU2JJfZr85x9ZyQbvyv64cT_B3R9_98sDyIGkWBhheyvhmuxehkt4m9PQKVzDfZKmooWt7nVzXbmdgV3B8W76843wLbpgvXDlmdk2DLHvqi4NoAK7oojynEdC_KrYQtvlILCh-FmZCRv3k6mfpoKI7pUBBY1i2QXi9HGKU9Heu8yv03BZCdwgEceVWqsqpLF5glDVQWswNukYj-HYUL1y7Dna5wsEUT-6BsiO14JjkBFybotdYXQcWIaCF1tIgkysQBrxBefOd7RLGs3hGWnTlinLv92f6Ea74U2qBwtwzuYRoTAkfbsmNyj3LLUsx7rErCIaVoMwvCkSA3eKGVCV9p7u-P8AwTOuLVYYtDK2XuB-IHYpjXC4g4xyn2x5nH2IHUcphcVzZdzfDXF0BmqNlTPNEDnOzqSMXe1HiwXjsZLftBtEc92w7EPHwQewhA8ZmUn70EVSso0y2f4EOhP_R-Dujoyq038p_nr3lTQa9s7oDdiBge4tSGU58KIMPoi8q-t0TbQ5OmXKB5-fjSX7yECJe0ZsgsQ-iqZcAC1RNEGw-ZbHqI5XF1LW5tlRI86OzuDH0b6Cerg8LlEoyRjZU8tiPjmhKdhYqix_ZV56YNRqSSOU_pIclLYGG3IqMZm1xLTFkRLzGZRTK_hQm1IFwFs1v2CgUIdZgLmElzwQBsXIT9YNiMqX1fPeZW_UB9ZgxpIQZm7ku-Ous3ChIzFLzHA2EWptki1c9DbXJd_swUZxFreM1j8mZB0ZpfRi3KpYqdt6lCV-Abhdn5fGwJ0G71y3ATLYQb6gYhc_K3RldoubBd0AAoLhWbW3R27YWMbsgQG9XXc72OrRPjO0U_dLBnL65NoreYFuYe0WqreT_B53N3RCrWVcOdX5rGb16ru_6D_nUDIf22xKAodKpD6R17tmZ8H7vSaWOMtksflAyJVuIOVKtQhvsJhnDG-ws0puqQDVJ4-7aOrl6pEYR6cpu-gVPwqXxNJvSr3xYSqWvTMzsUu3bHwEdJhIqYFJyh')
-
-# Colors matching PCMS branding
-NAVY = HexColor('#1e3a5f')
-GOLD = HexColor('#d4a84b')
-TEAL = HexColor('#2d8b9f')
-
-def fix_image_orientation(image_data):
-    """Fix image orientation based on EXIF data"""
-    try:
-        img = Image.open(io.BytesIO(base64.b64decode(image_data.split(',')[1] if ',' in image_data else image_data)))
-        
-        # Check for EXIF orientation
-        try:
-            from PIL import ExifTags
-            for orientation in ExifTags.TAGS.keys():
-                if ExifTags.TAGS[orientation] == 'Orientation':
-                    break
-            
-            exif = img._getexif()
-            if exif is not None:
-                orientation_value = exif.get(orientation)
-                if orientation_value == 3:
-                    img = img.rotate(180, expand=True)
-                elif orientation_value == 6:
-                    img = img.rotate(270, expand=True)
-                elif orientation_value == 8:
-                    img = img.rotate(90, expand=True)
-        except (AttributeError, KeyError, IndexError):
-            pass
-        
-        # Convert back to bytes
-        output = io.BytesIO()
-        img.save(output, format='JPEG', quality=85)
-        output.seek(0)
-        return output
-    except Exception as e:
-        print(f"Error fixing orientation: {e}")
-        # Return original if processing fails
-        return io.BytesIO(base64.b64decode(image_data.split(',')[1] if ',' in image_data else image_data))
-
-@functions_framework.http
-def generate_certificate(request):
-    # Handle CORS
-    if request.method == 'OPTIONS':
-        headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST',
-            'Access-Control-Allow-Headers': 'Content-Type',
-            'Access-Control-Max-Age': '3600'
-        }
-        return ('', 204, headers)
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1a365d">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>PCMS Mobile</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="assets/logo.png">
     
-    headers = {'Access-Control-Allow-Origin': '*'}
+    <!-- OCR powered by OCR.space API -->
     
-    try:
-        data = request.get_json()
-        
-        # Extract test data
-        customer = data.get('customer', 'Unknown Customer')
-        location = data.get('location', 'Unknown Location')
-        serial_number = data.get('serialNumber', 'N/A')
-        manufacturer = data.get('manufacturer', 'N/A')
-        service_type = data.get('serviceType', 'Closed Pipe')
-        is_startup = data.get('isStartup', False)
-        water_type = data.get('waterType', '')
-        meter_reading = data.get('meterReading', '')
-        calibration = data.get('calibration', '')
-        programming = data.get('programming', '')
-        notes = data.get('notes', '')
-        tech_notes = data.get('techNotes', '')  # Internal only - not on cert
-        tested_by = data.get('testedBy', 'Mick Bartlett')
-        timestamp = data.get('timestamp', datetime.now().isoformat())
-        photos = data.get('photos', [])
-        
-        # Service-specific fields
-        pipe_material = data.get('pipeMaterial', '')
-        pipe_size = data.get('pipeSize', '')
-        method = data.get('method', '')
-        
-        # Closed Pipe fields
-        val_flow_before = data.get('valFlowBefore', '')
-        cus_flow_before = data.get('cusFlowBefore', '')
-        val_flow_after = data.get('valFlowAfter', '')
-        cus_flow_after = data.get('cusFlowAfter', '')
-        
-        # Open Channel fields
-        device_type = data.get('deviceType', '')
-        range_val = data.get('range', '')
-        units = data.get('units', '')
-        level_channel_before = data.get('levelChannelBefore', '')
-        level_meter_before = data.get('levelMeterBefore', '')
-        level_channel_after = data.get('levelChannelAfter', '')
-        level_meter_after = data.get('levelMeterAfter', '')
-        
-        # Loop Test fields
-        low_desired = data.get('lowDesired', '')
-        low_measured = data.get('lowMeasured', '')
-        mid_desired = data.get('midDesired', '')
-        mid_measured = data.get('midMeasured', '')
-        high_desired = data.get('highDesired', '')
-        high_measured = data.get('highMeasured', '')
-        
-        # Chart Recorder fields
-        measurement_type = data.get('measurementType', '')
-        meter_before = data.get('meterBefore', '')
-        chart_before = data.get('chartBefore', '')
-        meter_after = data.get('meterAfter', '')
-        chart_after = data.get('chartAfter', '')
-        
-        # Parse timestamp
-        try:
-            test_date = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-        except:
-            test_date = datetime.now()
-        
-        date_str = test_date.strftime('%B %d, %Y')
-        
-        # Create PDF
-        buffer = io.BytesIO()
-        c = canvas.Canvas(buffer, pagesize=letter)
-        width, height = letter
-        
-        # Logo
-        logo_width = 50 * mm
-        logo_x = 80
-        logo_y = height - 45
-        
-        try:
-            import urllib.request
-            logo_url = "https://mickeyrivers.github.io/pcms-mobile-v2/logo.png"
-            logo_data = urllib.request.urlopen(logo_url).read()
-            logo_buffer = io.BytesIO(logo_data)
-            c.drawImage(logo_buffer, logo_x, logo_y, width=logo_width, preserveAspectRatio=True, mask='auto')
-        except Exception as e:
-            print(f"Logo error: {e}")
-            c.setFont("Helvetica-Bold", 16)
-            c.setFillColor(NAVY)
-            c.drawString(72, height - 50, "YOUR GO-TO FLOW PROS")
-        
-        # Header
-        y = height - 85
-        c.setFont("Helvetica-Bold", 18)
-        c.setFillColor(NAVY)
-        
-        title = "STARTUP VERIFICATION" if is_startup else "CALIBRATION VERIFICATION"
-        c.drawCentredString(width/2, y, title)
-        
-        y -= 20
-        c.setFont("Helvetica", 10)
-        c.setFillColor(NAVY)
-        c.drawCentredString(width/2, y, f"Certificate of {service_type} Test")
-        
-        # Gold line
-        y -= 15
-        c.setStrokeColor(GOLD)
-        c.setLineWidth(2)
-        c.line(72, y, width - 72, y)
-        
-        # Customer info section
-        y -= 30
-        c.setFont("Helvetica-Bold", 11)
-        c.setFillColor(NAVY)
-        c.drawString(72, y, "CUSTOMER INFORMATION")
-        
-        y -= 20
-        c.setFont("Helvetica", 10)
-        c.setFillColor(HexColor('#333333'))
-        
-        info_items = [
-            ("Customer:", customer),
-            ("Location:", location),
-            ("Date:", date_str),
-        ]
-        
-        for label, value in info_items:
-            c.setFont("Helvetica-Bold", 10)
-            c.drawString(72, y, label)
-            c.setFont("Helvetica", 10)
-            c.drawString(150, y, str(value))
-            y -= 15
-        
-        # Equipment info section
-        y -= 15
-        c.setFont("Helvetica-Bold", 11)
-        c.setFillColor(NAVY)
-        c.drawString(72, y, "EQUIPMENT DETAILS")
-        
-        y -= 20
-        c.setFont("Helvetica", 10)
-        c.setFillColor(HexColor('#333333'))
-        
-        equip_items = [
-            ("Serial Number:", serial_number),
-            ("Manufacturer/Model:", manufacturer),
-        ]
-        
-        if water_type:
-            equip_items.append(("Water Type:", water_type))
-        if device_type:
-            equip_items.append(("Device Type:", device_type))
-        
-        for label, value in equip_items:
-            c.setFont("Helvetica-Bold", 10)
-            c.drawString(72, y, label)
-            c.setFont("Helvetica", 10)
-            c.drawString(180, y, str(value))
-            y -= 15
-        
-        # Test Results section
-        y -= 15
-        c.setFont("Helvetica-Bold", 11)
-        c.setFillColor(NAVY)
-        c.drawString(72, y, "TEST RESULTS")
-        
-        y -= 20
-        
-        # Draw results table based on service type
-        if service_type == 'Closed Pipe':
-            # Table header
-            c.setFillColor(NAVY)
-            c.rect(72, y - 5, width - 144, 20, fill=True)
-            c.setFillColor(HexColor('#ffffff'))
-            c.setFont("Helvetica-Bold", 9)
-            c.drawString(80, y, "Condition")
-            c.drawString(200, y, "Validation Flow")
-            c.drawString(350, y, "Customer Flow")
-            
-            y -= 25
-            c.setFillColor(HexColor('#333333'))
-            c.setFont("Helvetica", 10)
-            
-            before_label = "Initial" if is_startup else "Before"
-            after_label = "Final" if is_startup else "After"
-            
-            c.drawString(80, y, before_label)
-            c.drawString(200, y, str(val_flow_before))
-            c.drawString(350, y, str(cus_flow_before))
-            
-            y -= 18
-            c.drawString(80, y, after_label)
-            c.drawString(200, y, str(val_flow_after))
-            c.drawString(350, y, str(cus_flow_after))
-            
-        elif service_type == 'Open Channel':
-            # Table header
-            c.setFillColor(NAVY)
-            c.rect(72, y - 5, width - 144, 20, fill=True)
-            c.setFillColor(HexColor('#ffffff'))
-            c.setFont("Helvetica-Bold", 9)
-            c.drawString(80, y, "Condition")
-            c.drawString(200, y, "Channel Level")
-            c.drawString(350, y, "Meter Level")
-            
-            y -= 25
-            c.setFillColor(HexColor('#333333'))
-            c.setFont("Helvetica", 10)
-            
-            before_label = "Initial" if is_startup else "Before"
-            after_label = "Final" if is_startup else "After"
-            
-            c.drawString(80, y, before_label)
-            c.drawString(200, y, str(level_channel_before))
-            c.drawString(350, y, str(level_meter_before))
-            
-            y -= 18
-            c.drawString(80, y, after_label)
-            c.drawString(200, y, str(level_channel_after))
-            c.drawString(350, y, str(level_meter_after))
-            
-        elif service_type == 'Loop Test':
-            # Table header
-            c.setFillColor(NAVY)
-            c.rect(72, y - 5, width - 144, 20, fill=True)
-            c.setFillColor(HexColor('#ffffff'))
-            c.setFont("Helvetica-Bold", 9)
-            c.drawString(80, y, "Test Point")
-            c.drawString(200, y, "Desired")
-            c.drawString(350, y, "Measured")
-            
-            y -= 25
-            c.setFillColor(HexColor('#333333'))
-            c.setFont("Helvetica", 10)
-            
-            c.drawString(80, y, "Low (4mA)")
-            c.drawString(200, y, str(low_desired))
-            c.drawString(350, y, str(low_measured))
-            
-            y -= 18
-            c.drawString(80, y, "Mid (12mA)")
-            c.drawString(200, y, str(mid_desired))
-            c.drawString(350, y, str(mid_measured))
-            
-            y -= 18
-            c.drawString(80, y, "High (20mA)")
-            c.drawString(200, y, str(high_desired))
-            c.drawString(350, y, str(high_measured))
-            
-        elif service_type == 'Chart Recorder':
-            # Table header
-            c.setFillColor(NAVY)
-            c.rect(72, y - 5, width - 144, 20, fill=True)
-            c.setFillColor(HexColor('#ffffff'))
-            c.setFont("Helvetica-Bold", 9)
-            c.drawString(80, y, "Condition")
-            c.drawString(200, y, "Meter Reading")
-            c.drawString(350, y, "Chart Reading")
-            
-            y -= 25
-            c.setFillColor(HexColor('#333333'))
-            c.setFont("Helvetica", 10)
-            
-            c.drawString(80, y, "Before")
-            c.drawString(200, y, str(meter_before))
-            c.drawString(350, y, str(chart_before))
-            
-            y -= 18
-            c.drawString(80, y, "After")
-            c.drawString(200, y, str(meter_after))
-            c.drawString(350, y, str(chart_after))
-        
-        y -= 30
-        
-        # Additional info
-        if meter_reading:
-            c.setFont("Helvetica-Bold", 10)
-            c.drawString(72, y, "Meter Reading:")
-            c.setFont("Helvetica", 10)
-            c.drawString(160, y, meter_reading)
-            y -= 15
-            
-        if calibration:
-            c.setFont("Helvetica-Bold", 10)
-            c.drawString(72, y, "Calibration:")
-            c.setFont("Helvetica", 10)
-            c.drawString(160, y, calibration)
-            y -= 15
-            
-        if programming:
-            c.setFont("Helvetica-Bold", 10)
-            c.drawString(72, y, "Programming:")
-            c.setFont("Helvetica", 10)
-            c.drawString(160, y, programming)
-            y -= 15
-        
-        # Notes (only regular notes, not tech notes)
-        if notes:
-            y -= 10
-            c.setFont("Helvetica-Bold", 10)
-            c.drawString(72, y, "Notes:")
-            y -= 15
-            c.setFont("Helvetica", 9)
-            # Word wrap notes
-            words = notes.split()
-            line = ""
-            for word in words:
-                if c.stringWidth(line + " " + word, "Helvetica", 9) < width - 144:
-                    line = line + " " + word if line else word
-                else:
-                    c.drawString(72, y, line)
-                    y -= 12
-                    line = word
-            if line:
-                c.drawString(72, y, line)
-                y -= 12
-        
-        # Footer
-        y -= 20
-        c.setFont("Helvetica-Bold", 10)
-        c.drawString(72, y, "Tested By:")
-        c.setFont("Helvetica", 10)
-        c.drawString(140, y, tested_by)
-        
-        y -= 25
-        c.setStrokeColor(GOLD)
-        c.setLineWidth(1)
-        c.line(72, y, width - 72, y)
-        
-        y -= 15
-        c.setFont("Helvetica", 8)
-        c.setFillColor(HexColor('#666666'))
-        c.drawCentredString(width/2, y, "YOUR GO-TO FLOW PROS | Calibration & Testing Services")
-        y -= 10
-        c.drawCentredString(width/2, y, "www.pcms-services.com | info@pcms-services.com")
-        
-        # Photos section - centered with reduced gap
-        if photos and len(photos) > 0:
-            valid_photos = [p for p in photos if p]
-            if valid_photos:
-                y -= 15  # Reduced gap
-                
-                # Calculate available space
-                available_height = y - 30  # Leave margin at bottom
-                
-                if available_height > 25 * mm:  # Only add photos if enough space
-                    num_photos = len(valid_photos)
-                    
-                    # Calculate photo dimensions
-                    max_photo_height = min(45 * mm, available_height)  # Reduced max height
-                    photo_width = 45 * mm
-                    gap = 5 * mm  # Small gap between photos
-                    
-                    # Calculate total width and starting x for centering
-                    total_width = (num_photos * photo_width) + ((num_photos - 1) * gap)
-                    start_x = (width - total_width) / 2
-                    
-                    for i, photo_data in enumerate(valid_photos):
-                        try:
-                            img_buffer = fix_image_orientation(photo_data)
-                            x_pos = start_x + (i * (photo_width + gap))
-                            c.drawImage(img_buffer, x_pos, y - max_photo_height, 
-                                       width=photo_width, height=max_photo_height,
-                                       preserveAspectRatio=True, mask='auto')
-                        except Exception as e:
-                            print(f"Error adding photo {i}: {e}")
-        
-        c.save()
-        
-        # Upload to Dropbox
-        pdf_data = buffer.getvalue()
-        
-        # Create filename
-        safe_customer = "".join(c for c in customer if c.isalnum() or c in (' ', '-', '_')).rstrip()
-        safe_serial = "".join(c for c in serial_number if c.isalnum() or c in (' ', '-', '_')).rstrip()
-        date_folder = test_date.strftime('%Y-%m')
-        filename = f"{safe_serial}_{test_date.strftime('%Y%m%d')}.pdf"
-        dropbox_path = f"/PCMS Certificates/{safe_customer}/{date_folder}/{filename}"
-        
-        # Also save raw data JSON (includes techNotes)
-        raw_data = {
-            **data,
-            'generated_at': datetime.now().isoformat(),
-            'pdf_path': dropbox_path
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --navy: #1a365d;
+            --navy-light: #2c5282;
+            --gold: #d69e2e;
+            --gold-light: #ecc94b;
+            --teal: #319795;
+            --teal-light: #4fd1c5;
+            --white: #ffffff;
+            --gray-50: #f7fafc;
+            --gray-100: #edf2f7;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e0;
+            --gray-500: #718096;
+            --gray-700: #4a5568;
+            --gray-900: #1a202c;
+            --red: #e53e3e;
+            --green: #38a169;
         }
-        raw_filename = f"{safe_serial}_{test_date.strftime('%Y%m%d')}_data.json"
-        raw_path = f"/PCMS Certificates/{safe_customer}/{date_folder}/{raw_filename}"
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-900);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+            padding: 16px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(26, 54, 93, 0.3);
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-section img {
+            height: 40px;
+            width: auto;
+        }
+
+        .logo-text {
+            color: var(--white);
+            font-weight: 600;
+            font-size: 18px;
+            letter-spacing: -0.5px;
+        }
+
+        .sync-badge {
+            background: var(--gold);
+            color: var(--navy);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sync-badge.offline {
+            background: var(--gray-300);
+            color: var(--gray-700);
+        }
+
+        .sync-badge.pending {
+            background: var(--gold);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Screen Management */
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Home Screen */
+        .action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .action-card {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 24px 16px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .action-card:hover, .action-card:active {
+            border-color: var(--teal);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(49, 151, 149, 0.15);
+        }
+
+        .action-card.primary {
+            grid-column: span 2;
+            background: linear-gradient(135deg, var(--teal) 0%, var(--teal-light) 100%);
+            color: var(--white);
+        }
+
+        .action-card.primary:hover {
+            border-color: var(--navy);
+        }
+
+        .action-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .action-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+
+        .action-subtitle {
+            font-size: 13px;
+            opacity: 0.8;
+        }
+
+        /* Pending Tests Section */
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        .pending-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .pending-item {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pending-info h4 {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 4px;
+        }
+
+        .pending-info p {
+            font-size: 13px;
+            color: var(--gray-500);
+        }
+
+        .pending-status {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .pending-status.waiting {
+            background: var(--gold-light);
+            color: var(--navy);
+        }
+
+        /* Scanner Screen */
+        .scanner-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: var(--gray-900);
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        #video-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .scanner-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .scan-target {
+            width: 80%;
+            height: 60px;
+            border: 3px solid var(--teal-light);
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .scan-target::before {
+            content: 'Align serial number here';
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--white);
+            font-size: 13px;
+            white-space: nowrap;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--teal-light);
+            animation: scanMove 2s ease-in-out infinite;
+        }
+
+        @keyframes scanMove {
+            0%, 100% { top: 0; }
+            50% { top: calc(100% - 3px); }
+        }
+
+        .scanner-controls {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--teal);
+            color: var(--white);
+            flex: 1;
+        }
+
+        .btn-primary:hover, .btn-primary:active {
+            background: var(--teal-light);
+        }
+
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-700);
+        }
+
+        .btn-secondary:hover, .btn-secondary:active {
+            background: var(--gray-300);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--gray-300);
+            color: var(--gray-700);
+        }
+
+        .btn-gold {
+            background: var(--gold);
+            color: var(--navy);
+        }
+
+        .btn-gold:hover, .btn-gold:active {
+            background: var(--gold-light);
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Manual Entry */
+        .manual-entry {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        .manual-entry p {
+            text-align: center;
+            color: var(--gray-500);
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        /* Form Screen */
+        .form-section {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        .form-section-title {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--navy);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--gray-700);
+            margin-bottom: 6px;
+        }
+
+        .form-label.required::after {
+            content: ' *';
+            color: var(--red);
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid var(--gray-200);
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 15px;
+            transition: border-color 0.2s ease;
+            background: var(--white);
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--teal);
+        }
+
+        .form-input.readonly {
+            background: var(--gray-100);
+            color: var(--gray-700);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-hint {
+            font-size: 12px;
+            color: var(--gray-500);
+            margin-top: 4px;
+        }
+
+        /* Service Type Pills */
+        .service-type-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .service-type-option {
+            padding: 12px;
+            border: 2px solid var(--gray-200);
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .service-type-option:hover {
+            border-color: var(--teal);
+        }
+
+        .service-type-option.selected {
+            border-color: var(--teal);
+            background: rgba(49, 151, 149, 0.1);
+            color: var(--teal);
+        }
+
+        /* Startup Toggle */
+        .startup-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            background: var(--gray-100);
+            border-radius: 10px;
+            margin-top: 12px;
+        }
+
+        .startup-toggle label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 28px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background: var(--gray-300);
+            border-radius: 28px;
+            transition: 0.3s;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            height: 22px;
+            width: 22px;
+            left: 3px;
+            bottom: 3px;
+            background: var(--white);
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: var(--teal);
+        }
+
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(22px);
+        }
+
+        /* Photo Capture */
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .photo-slot {
+            aspect-ratio: 1;
+            border: 2px dashed var(--gray-300);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            overflow: hidden;
+            position: relative;
+            background: var(--gray-100);
+        }
+
+        .photo-slot:hover {
+            border-color: var(--teal);
+        }
+
+        .photo-slot img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .photo-slot .add-icon {
+            font-size: 24px;
+            color: var(--gray-400);
+        }
+
+        .photo-slot .remove-photo {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: var(--red);
+            color: var(--white);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        /* Conditional Fields */
+        .conditional-fields {
+            display: none;
+        }
+
+        .conditional-fields.visible {
+            display: block;
+        }
+
+        /* Match Result Card */
+        .match-card {
+            background: linear-gradient(135deg, var(--teal) 0%, var(--teal-light) 100%);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            color: var(--white);
+        }
+
+        .match-card h3 {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .match-card .serial {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .match-card .details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .match-card .detail-item {
+            background: rgba(255,255,255,0.15);
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+
+        .match-card .detail-label {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+
+        /* Loading States */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(26, 54, 93, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .loading-overlay.visible {
+            display: flex;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255,255,255,0.2);
+            border-top-color: var(--teal-light);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: var(--white);
+            font-size: 16px;
+        }
+
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--gray-900);
+            color: var(--white);
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1001;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .toast.visible {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            background: var(--green);
+        }
+
+        .toast.error {
+            background: var(--red);
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--white);
+            padding: 12px 20px 24px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .bottom-nav .btn {
+            flex: 1;
+            max-width: 200px;
+        }
+
+        /* Spacer for bottom nav */
+        .bottom-spacer {
+            height: 100px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--gray-500);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            font-size: 18px;
+            color: var(--gray-700);
+            margin-bottom: 8px;
+        }
+
+        /* Back button */
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--white);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+            margin: -8px;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-section">
+                <button class="back-btn" id="backBtn" style="display: none;">←</button>
+                <img src="logo.png" alt="PCMS">
+                <span class="logo-text">PCMS Mobile</span>
+            </div>
+            <div class="sync-badge" id="syncBadge">
+                <span>●</span> Online
+            </div>
+        </div>
+    </header>
+
+    <!-- PIN Lock Screen -->
+    <div id="pinLockScreen" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--navy); z-index: 9999; flex-direction: column; align-items: center; justify-content: center;">
+        <div style="text-align: center; padding: 20px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">🔒</div>
+            <h2 style="color: white; margin-bottom: 8px;">PCMS Mobile</h2>
+            <p style="color: var(--gray-400); margin-bottom: 24px;" id="pinMessage">Enter your 4-digit PIN</p>
+            
+            <!-- Email input for setup -->
+            <div id="emailSetup" style="display: none; margin-bottom: 24px;">
+                <input type="email" id="recoveryEmail" placeholder="Recovery email address" 
+                    style="width: 100%; max-width: 280px; padding: 12px 16px; border-radius: 8px; border: 2px solid var(--gold); background: transparent; color: white; font-size: 16px; text-align: center;">
+                <button onclick="saveRecoveryEmail()" style="margin-top: 12px; padding: 12px 24px; background: var(--gold); color: var(--navy); border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Continue</button>
+            </div>
+            
+            <!-- Reset code input -->
+            <div id="resetCodeInput" style="display: none; margin-bottom: 24px;">
+                <input type="text" id="resetCode" placeholder="Enter 6-digit code" maxlength="6"
+                    style="width: 100%; max-width: 200px; padding: 12px 16px; border-radius: 8px; border: 2px solid var(--gold); background: transparent; color: white; font-size: 24px; text-align: center; letter-spacing: 8px;">
+                <button onclick="verifyResetCode()" style="margin-top: 12px; padding: 12px 24px; background: var(--gold); color: var(--navy); border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Verify Code</button>
+            </div>
+            
+            <div id="pinDots" style="display: flex; justify-content: center; gap: 16px; margin-bottom: 32px;">
+                <div class="pin-dot" style="width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--gold); background: transparent;"></div>
+                <div class="pin-dot" style="width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--gold); background: transparent;"></div>
+                <div class="pin-dot" style="width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--gold); background: transparent;"></div>
+                <div class="pin-dot" style="width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--gold); background: transparent;"></div>
+            </div>
+            
+            <div id="pinPad" style="display: grid; grid-template-columns: repeat(3, 70px); gap: 12px; justify-content: center;">
+                <button class="pin-btn" onclick="enterPin('1')">1</button>
+                <button class="pin-btn" onclick="enterPin('2')">2</button>
+                <button class="pin-btn" onclick="enterPin('3')">3</button>
+                <button class="pin-btn" onclick="enterPin('4')">4</button>
+                <button class="pin-btn" onclick="enterPin('5')">5</button>
+                <button class="pin-btn" onclick="enterPin('6')">6</button>
+                <button class="pin-btn" onclick="enterPin('7')">7</button>
+                <button class="pin-btn" onclick="enterPin('8')">8</button>
+                <button class="pin-btn" onclick="enterPin('9')">9</button>
+                <button class="pin-btn" onclick="clearPin()" style="font-size: 14px;">Clear</button>
+                <button class="pin-btn" onclick="enterPin('0')">0</button>
+                <button class="pin-btn" onclick="deletePin()">⌫</button>
+            </div>
+            
+            <p id="pinSetupLink" style="color: var(--gold); margin-top: 24px; font-size: 13px; cursor: pointer; display: none;" onclick="startPinReset()">Forgot PIN? Reset</p>
+        </div>
+    </div>
+
+    <style>
+        .pin-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: 2px solid var(--gold);
+            background: transparent;
+            color: white;
+            font-size: 24px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .pin-btn:active {
+            background: var(--gold);
+            color: var(--navy);
+        }
+        .pin-dot.filled {
+            background: var(--gold) !important;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+    </style>
+
+    <!-- Main Container -->
+    <main class="container" id="mainContainer" style="display: none;">
+        <!-- Home Screen -->
+        <section class="screen active" id="homeScreen">
+            <div class="action-grid">
+                <div class="action-card primary" onclick="showScreen('scannerScreen')">
+                    <div class="action-icon">📷</div>
+                    <div class="action-title">Scan Meter</div>
+                    <div class="action-subtitle">Scan serial number to start test</div>
+                </div>
+                <div class="action-card primary" onclick="showFindNearbyOptions()">
+                    <div class="action-icon">📍</div>
+                    <div class="action-title">Find Nearby Meter</div>
+                    <div class="action-subtitle">Locate meter by GPS</div>
+                </div>
+                <div class="action-card" onclick="showScreen('formScreen'); resetForm();">
+                    <div class="action-icon">📝</div>
+                    <div class="action-title">Manual Entry</div>
+                    <div class="action-subtitle">Enter details manually</div>
+                </div>
+                <div class="action-card" onclick="showScreen('pendingScreen')">
+                    <div class="action-icon">📋</div>
+                    <div class="action-title">Pending</div>
+                    <div class="action-subtitle" id="pendingCount">0 tests waiting</div>
+                </div>
+                <div class="action-card" onclick="showScreen('historyScreen')">
+                    <div class="action-icon">🔍</div>
+                    <div class="action-title">History</div>
+                    <div class="action-subtitle">Look up past tests</div>
+                </div>
+                <div class="action-card" onclick="showScreen('trackerScreen')">
+                    <div class="action-icon">📊</div>
+                    <div class="action-title">Tracker</div>
+                    <div class="action-subtitle">Meters due for testing</div>
+                </div>
+            </div>
+
+            <div class="section-title">Recent Activity</div>
+            <div id="recentList" class="pending-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <h3>No Recent Tests</h3>
+                    <p>Completed tests will appear here</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Scanner Screen -->
+        <section class="screen" id="scannerScreen">
+            <div class="scanner-container">
+                <video id="video-preview" autoplay playsinline></video>
+                <div class="scanner-overlay">
+                    <div class="scan-target">
+                        <div class="scan-line"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scan Result Preview (hidden until scan) -->
+            <div id="scanResult" style="display: none; background: var(--white); margin: 16px; padding: 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <p style="font-size: 12px; color: var(--gray-500); margin-bottom: 8px;">Detected Serial Number:</p>
+                <input type="text" class="form-input" id="detectedSerial" style="font-size: 18px; font-weight: 600; text-align: center; font-family: 'JetBrains Mono', monospace;">
+                <div style="display: flex; gap: 8px; margin-top: 12px;">
+                    <button class="btn btn-outline" onclick="retryScan()" style="flex: 1;">🔄 Retry</button>
+                    <button class="btn btn-primary" onclick="acceptSerial()" style="flex: 1;">✓ Accept</button>
+                </div>
+            </div>
+
+            <div class="scanner-controls" id="scannerControls">
+                <button class="btn btn-primary" id="captureBtn" onclick="captureAndScan()">
+                    📸 Capture & Scan
+                </button>
+                <p style="color: var(--gray-500); font-size: 12px; margin-top: 8px; text-align: center;">
+                    Hold camera steady, ensure good lighting
+                </p>
+            </div>
+
+            <div class="manual-entry">
+                <p>Can't scan? Enter manually:</p>
+                <div class="form-group">
+                    <input type="text" class="form-input" id="manualSerial" placeholder="Enter serial number" oninput="autoSearchSerial(this.value)">
+                </div>
+                <div id="serialSuggestions" style="display: none; max-height: 200px; overflow-y: auto; background: var(--white); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-top: -8px; margin-bottom: 12px;"></div>
+                <button class="btn btn-outline btn-block" onclick="lookupSerial(document.getElementById('manualSerial').value)">
+                    Search AssetDB
+                </button>
+            </div>
+        </section>
+
+        <!-- Form Screen -->
+        <section class="screen" id="formScreen">
+            <!-- Match Card (shown when asset found) -->
+            <div class="match-card" id="matchCard" style="display: none;">
+                <h3>METER FOUND</h3>
+                <div class="serial" id="matchSerial">-</div>
+                <div class="details">
+                    <div class="detail-item">
+                        <div class="detail-label">Customer</div>
+                        <div id="matchCustomer">-</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Location</div>
+                        <div id="matchLocation">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meter Info Section -->
+            <div class="form-section">
+                <div class="form-section-title">📍 Meter Information</div>
+                
+                <div class="form-group">
+                    <label class="form-label required">Customer</label>
+                    <input type="text" class="form-input" id="formCustomer">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label required">Facility/Location</label>
+                    <input type="text" class="form-input" id="formLocation">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">GPS Coordinates</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" class="form-input" id="formGPS" placeholder="Tap button to capture" readonly style="flex: 1;">
+                        <button type="button" class="btn btn-secondary" onclick="captureGPS()" style="padding: 12px 16px;">📍</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Serial Number</label>
+                    <input type="text" class="form-input" id="formSerial">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Manufacturer/Model</label>
+                    <input type="text" class="form-input" id="formManufacturer">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Water/Wastewater</label>
+                    <select class="form-select" id="formWaterType">
+                        <option value="">Select...</option>
+                        <option value="Water">Water</option>
+                        <option value="Wastewater">Wastewater</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Service Frequency</label>
+                    <select class="form-select" id="formServiceFrequency">
+                        <option value="Annual">Annual</option>
+                        <option value="Semi-Annual">Semi-Annual</option>
+                        <option value="Call Out">Call Out (One-time)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Service Type Section -->
+            <div class="form-section">
+                <div class="form-section-title">🔧 Service Type</div>
+                
+                <div class="service-type-grid">
+                    <div class="service-type-option" data-type="Closed Pipe" onclick="selectServiceType(this)">
+                        Closed Pipe
+                    </div>
+                    <div class="service-type-option" data-type="Open Channel" onclick="selectServiceType(this)">
+                        Open Channel
+                    </div>
+                    <div class="service-type-option" data-type="Loop Test" onclick="selectServiceType(this)">
+                        Loop Test
+                    </div>
+                    <div class="service-type-option" data-type="Chart Recorder" onclick="selectServiceType(this)">
+                        Chart Recorder
+                    </div>
+                </div>
+
+                <div class="startup-toggle">
+                    <label>Startup (New Installation)</label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="formStartup" onchange="toggleStartup()">
+                        <span class="toggle-slider"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Closed Pipe Fields -->
+            <div class="form-section conditional-fields" id="closedPipeFields">
+                <div class="form-section-title">🔵 Closed Pipe Data</div>
+                
+                <div class="form-group">
+                    <label class="form-label">Pipe Material</label>
+                    <select class="form-select" id="formPipeMaterial">
+                        <option value="">Select...</option>
+                        <option value="PVC">PVC</option>
+                        <option value="Ductile Iron">Ductile Iron</option>
+                        <option value="Cast Iron">Cast Iron</option>
+                        <option value="Steel">Steel</option>
+                        <option value="Copper">Copper</option>
+                        <option value="HDPE">HDPE</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Pipe Size (O.D.)</label>
+                    <input type="text" class="form-input" id="formPipeSize" placeholder="e.g., 2.375">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Method of Verification</label>
+                    <select class="form-select" id="formMethodCP">
+                        <option value="">Select...</option>
+                        <option value="Ultrasonic">Ultrasonic</option>
+                        <option value="Doppler">Doppler</option>
+                        <option value="Volumetric">Volumetric</option>
+                    </select>
+                </div>
+
+                <div class="form-group before-field">
+                    <label class="form-label">Flow Rate - Validating Meter (Before)</label>
+                    <input type="number" step="0.1" class="form-input" id="formValFlowBefore" placeholder="GPM">
+                </div>
+
+                <div class="form-group before-field">
+                    <label class="form-label">Customer Meter - Flow Rate (Before)</label>
+                    <input type="number" step="0.1" class="form-input" id="formCusFlowBefore" placeholder="GPM">
+                </div>
+
+                <div class="form-group after-field">
+                    <label class="form-label">Flow Rate - Validating Meter (After)</label>
+                    <input type="number" step="0.1" class="form-input" id="formValFlowAfter" placeholder="GPM">
+                </div>
+
+                <div class="form-group after-field">
+                    <label class="form-label">Customer Meter - Flow Rate (After)</label>
+                    <input type="number" step="0.1" class="form-input" id="formCusFlowAfter" placeholder="GPM">
+                </div>
+            </div>
+
+            <!-- Open Channel Fields -->
+            <div class="form-section conditional-fields" id="openChannelFields">
+                <div class="form-section-title">🌊 Open Channel Data</div>
+                
+                <div class="form-group">
+                    <label class="form-label">Primary Device Type</label>
+                    <select class="form-select" id="formDeviceType">
+                        <option value="">Select...</option>
+                        <option value="(Flume) 3-Inch Parshall">(Flume) 3-Inch Parshall</option>
+                        <option value="(Flume) 6-Inch Parshall">(Flume) 6-Inch Parshall</option>
+                        <option value="(Flume) 9-Inch Parshall">(Flume) 9-Inch Parshall</option>
+                        <option value="(Flume) 12-Inch Parshall">(Flume) 12-Inch Parshall</option>
+                        <option value="(Flume) 18-Inch Parshall">(Flume) 18-Inch Parshall</option>
+                        <option value="(Flume) 24-Inch Parshall">(Flume) 24-Inch Parshall</option>
+                        <option value="(Weir) 90° V-Notch">(Weir) 90° V-Notch</option>
+                        <option value="(Weir) 60° V-Notch">(Weir) 60° V-Notch</option>
+                        <option value="(Weir) Rectangular">(Weir) Rectangular</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Range</label>
+                    <input type="text" class="form-input" id="formRange" placeholder="e.g., 0-10">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Units</label>
+                    <select class="form-select" id="formUnitsOC">
+                        <option value="">Select...</option>
+                        <option value="MGD">MGD</option>
+                        <option value="GPM">GPM</option>
+                        <option value="CFS">CFS</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Method of Verification</label>
+                    <select class="form-select" id="formMethodOC">
+                        <option value="">Select...</option>
+                        <option value="Level Measurement">Level Measurement</option>
+                        <option value="Ultrasonic">Ultrasonic</option>
+                    </select>
+                </div>
+
+                <div class="form-group before-field">
+                    <label class="form-label">Level in Channel (Before)</label>
+                    <input type="number" step="0.01" class="form-input" id="formLevelChannelBefore" placeholder="Inches">
+                </div>
+
+                <div class="form-group before-field">
+                    <label class="form-label">Level on Meter (Before)</label>
+                    <input type="number" step="0.01" class="form-input" id="formLevelMeterBefore" placeholder="Inches">
+                </div>
+
+                <div class="form-group after-field">
+                    <label class="form-label">Level in Channel (After)</label>
+                    <input type="number" step="0.01" class="form-input" id="formLevelChannelAfter" placeholder="Inches">
+                </div>
+
+                <div class="form-group after-field">
+                    <label class="form-label">Level on Meter (After)</label>
+                    <input type="number" step="0.01" class="form-input" id="formLevelMeterAfter" placeholder="Inches">
+                </div>
+            </div>
+
+            <!-- Loop Test Fields -->
+            <div class="form-section conditional-fields" id="loopTestFields">
+                <div class="form-section-title">⚡ Loop Test Data</div>
+                
+                <div class="form-group">
+                    <label class="form-label">Desired Output - Low (mA)</label>
+                    <input type="number" step="0.01" class="form-input" id="formLowDesired" placeholder="4.00">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Measured Output - Low (mA)</label>
+                    <input type="number" step="0.01" class="form-input" id="formLowMeasured" placeholder="mA">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Desired Output - Mid (mA)</label>
+                    <input type="number" step="0.01" class="form-input" id="formMidDesired" placeholder="12.00">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Measured Output - Mid (mA)</label>
+                    <input type="number" step="0.01" class="form-input" id="formMidMeasured" placeholder="mA">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Desired Output - High (mA)</label>
+                    <input type="number" step="0.01" class="form-input" id="formHighDesired" placeholder="20.00">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Measured Output - High (mA)</label>
+                    <input type="number" step="0.01" class="form-input" id="formHighMeasured" placeholder="mA">
+                </div>
+            </div>
+
+            <!-- Chart Recorder Fields -->
+            <div class="form-section conditional-fields" id="chartRecorderFields">
+                <div class="form-section-title">📈 Chart Recorder Data</div>
+                
+                <div class="form-group">
+                    <label class="form-label">Measurement Type</label>
+                    <select class="form-select" id="formMeasurementType">
+                        <option value="">Select...</option>
+                        <option value="Inches">Inches (Level)</option>
+                        <option value="Feet">Feet (Level)</option>
+                        <option value="GPM">GPM (Flow)</option>
+                        <option value="MGD">MGD (Flow)</option>
+                    </select>
+                </div>
+
+                <div class="form-group before-field">
+                    <label class="form-label">Value on Meter (Before)</label>
+                    <input type="number" step="0.01" class="form-input" id="formMeterBefore">
+                </div>
+
+                <div class="form-group before-field">
+                    <label class="form-label">Value on Chart Recorder (Before)</label>
+                    <input type="number" step="0.01" class="form-input" id="formChartBefore">
+                </div>
+
+                <div class="form-group after-field">
+                    <label class="form-label">Value on Meter (After)</label>
+                    <input type="number" step="0.01" class="form-input" id="formMeterAfter">
+                </div>
+
+                <div class="form-group after-field">
+                    <label class="form-label">Value on Chart Recorder (After)</label>
+                    <input type="number" step="0.01" class="form-input" id="formChartAfter">
+                </div>
+            </div>
+
+            <!-- Calibration Notes Section -->
+            <div class="form-section">
+                <div class="form-section-title">📝 Calibration & Notes</div>
+                
+                <div class="form-group">
+                    <label class="form-label">Meter Reading</label>
+                    <input type="text" class="form-input" id="formMeterReading">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Calibration Adjustments</label>
+                    <textarea class="form-textarea" id="formCalibration" placeholder="Describe any adjustments made..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Programming Changes</label>
+                    <textarea class="form-textarea" id="formProgramming" placeholder="Describe any programming changes..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <textarea class="form-textarea" id="formNotes" placeholder="Additional notes (appears on certificate)..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Tech Notes (Internal Only)</label>
+                    <textarea class="form-textarea" id="formTechNotes" placeholder="Internal notes - will NOT appear on certificate..." style="background: #fff9e6; border-color: var(--gold);"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Tested by</label>
+                    <input type="text" class="form-input" id="formTestedBy" value="Mick Bartlett">
+                </div>
+            </div>
+
+            <!-- Photos Section -->
+            <div class="form-section">
+                <div class="form-section-title">📷 Photos</div>
+                <div class="photo-grid">
+                    <div class="photo-slot" onclick="capturePhoto(0)">
+                        <span class="add-icon">+</span>
+                    </div>
+                    <div class="photo-slot" onclick="capturePhoto(1)">
+                        <span class="add-icon">+</span>
+                    </div>
+                    <div class="photo-slot" onclick="capturePhoto(2)">
+                        <span class="add-icon">+</span>
+                    </div>
+                </div>
+                <p class="form-hint">Tap to capture photos of the installation</p>
+            </div>
+
+            <div class="bottom-spacer"></div>
+        </section>
+
+        <!-- Pending Screen -->
+        <section class="screen" id="pendingScreen">
+            <div class="section-title">Pending Tests (Waiting for Sync)</div>
+            <div id="pendingList" class="pending-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">✅</div>
+                    <h3>All Synced</h3>
+                    <p>No pending tests to upload</p>
+                </div>
+            </div>
+
+            <div style="margin-top: 24px;">
+                <button class="btn btn-gold btn-block" onclick="syncPending()" id="syncBtn">
+                    ↑ Sync All to Cloud
+                </button>
+            </div>
+        </section>
+
+        <!-- History Screen -->
+        <section class="screen" id="historyScreen">
+            <div class="section-title">Test History Lookup</div>
+            
+            <div class="form-group" style="margin-bottom: 16px;">
+                <input type="text" class="form-input" id="historySearch" placeholder="Search by serial, customer, or location..." oninput="searchHistory(this.value)">
+            </div>
+            
+            <div id="historyResults" class="pending-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🔍</div>
+                    <h3>Search Test History</h3>
+                    <p>Enter a serial number, customer name, or location</p>
+                </div>
+            </div>
+            
+            <div id="historyLoading" style="display: none; text-align: center; padding: 20px;">
+                <div class="spinner" style="margin: 0 auto;"></div>
+                <p style="margin-top: 12px; color: var(--gray-500);">Loading history...</p>
+            </div>
+        </section>
+
+        <!-- Tracker Screen -->
+        <section class="screen" id="trackerScreen">
+            <div class="section-title">Testing Calendar</div>
+            
+            <!-- Overall Summary -->
+            <div id="trackerOverallSummary" style="background: var(--navy); color: white; padding: 16px; border-radius: 12px; margin-bottom: 16px;">
+                <div style="text-align: center; margin-bottom: 12px;">
+                    <div style="font-size: 32px; font-weight: 700;" id="overallProgress">0%</div>
+                    <div style="font-size: 13px; color: var(--gray-400);">Overall Progress - <span id="currentYear">2026</span></div>
+                </div>
+                <div style="display: flex; justify-content: space-around; text-align: center;">
+                    <div>
+                        <div style="font-size: 20px; font-weight: 600; color: var(--gold);" id="overallDue">0</div>
+                        <div style="font-size: 11px; color: var(--gray-400);">Due</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 20px; font-weight: 600; color: var(--green);" id="overallComplete">0</div>
+                        <div style="font-size: 11px; color: var(--gray-400);">Complete</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 20px; font-weight: 600;" id="overallTotal">0</div>
+                        <div style="font-size: 11px; color: var(--gray-400);">Total</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Calendar View -->
+            <div id="trackerCalendar" style="background: var(--white); border-radius: 12px; overflow: hidden;">
+                <!-- Populated by JS -->
+            </div>
+            
+            <!-- Customer Detail View (hidden initially) -->
+            <div id="trackerDetail" style="display: none;">
+                <button onclick="showTrackerDashboard()" style="background: none; border: none; color: var(--teal); font-size: 14px; cursor: pointer; margin-bottom: 12px;">← Back to calendar</button>
+                
+                <div id="trackerSummary" style="background: var(--white); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h3 id="trackerCustomerName" style="font-size: 16px; margin: 0;">Customer</h3>
+                        <span id="trackerProgress" style="font-size: 14px; color: var(--teal); font-weight: 600;">0/0</span>
+                    </div>
+                    <div style="background: var(--gray-200); border-radius: 8px; height: 8px; overflow: hidden;">
+                        <div id="trackerProgressBar" style="background: var(--teal); height: 100%; width: 0%; transition: width 0.3s;"></div>
+                    </div>
+                </div>
+                
+                <div id="trackerMeters" class="pending-list">
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Bottom Nav for Form -->
+    <div class="bottom-nav" id="formNav" style="display: none;">
+        <button class="btn btn-secondary" onclick="showScreen('homeScreen')">Cancel</button>
+        <button class="btn btn-gold" onclick="saveTest()">💾 Save Test</button>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text" id="loadingText">Processing...</div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Hidden inputs -->
+    <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
+    <canvas id="scanCanvas" style="display:none"></canvas>
+
+    <script>
+        // ============================================
+        // APP STATE
+        // ============================================
+        let currentScreen = 'homeScreen';
+        let selectedServiceType = null;
+        let isStartup = false;
+        let photos = [null, null, null];
+        let currentPhotoIndex = 0;
+        let videoStream = null;
+        let assetDB = [];
+        let pendingTests = [];
+        let testHistory = [];
+        let enteredPin = '';
+        let isSettingPin = false;
+        let newPinFirst = '';
+        let pendingResetCode = '';
+        const RESET_CODE_URL = 'https://script.google.com/macros/s/AKfycbwW93UDFh1y-psTu_gSP0HlVHy79QtTyOAKmEK6gY2c8qao1FzGh05x_OWqM4xRhvpU_A/exec';
+
+        // ============================================
+        // PIN SECURITY
+        // ============================================
+        function checkPinSetup() {
+            const storedPin = localStorage.getItem('pcms_pin');
+            const storedEmail = localStorage.getItem('pcms_recovery_email');
+            const pinLockScreen = document.getElementById('pinLockScreen');
+            const mainContainer = document.getElementById('mainContainer');
+            
+            if (!storedPin) {
+                // No PIN set - prompt to create one
+                isSettingPin = true;
+                if (!storedEmail) {
+                    // Need email first
+                    document.getElementById('pinMessage').textContent = 'Set up recovery email';
+                    document.getElementById('emailSetup').style.display = 'block';
+                    document.getElementById('pinDots').style.display = 'none';
+                    document.getElementById('pinPad').style.display = 'none';
+                } else {
+                    document.getElementById('pinMessage').textContent = 'Create a 4-digit PIN';
+                }
+                document.getElementById('pinSetupLink').style.display = 'none';
+                pinLockScreen.style.display = 'flex';
+                mainContainer.style.display = 'none';
+            } else {
+                // PIN exists - require unlock
+                document.getElementById('pinMessage').textContent = 'Enter your 4-digit PIN';
+                document.getElementById('pinSetupLink').style.display = 'block';
+                document.getElementById('emailSetup').style.display = 'none';
+                document.getElementById('resetCodeInput').style.display = 'none';
+                document.getElementById('pinDots').style.display = 'flex';
+                document.getElementById('pinPad').style.display = 'grid';
+                pinLockScreen.style.display = 'flex';
+                mainContainer.style.display = 'none';
+            }
+        }
         
-        try:
-            dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
+        function saveRecoveryEmail() {
+            const email = document.getElementById('recoveryEmail').value.trim();
+            if (!email || !email.includes('@')) {
+                alert('Please enter a valid email address');
+                return;
+            }
+            localStorage.setItem('pcms_recovery_email', email);
+            document.getElementById('emailSetup').style.display = 'none';
+            document.getElementById('pinDots').style.display = 'flex';
+            document.getElementById('pinPad').style.display = 'grid';
+            document.getElementById('pinMessage').textContent = 'Create a 4-digit PIN';
+        }
+        
+        function enterPin(digit) {
+            if (enteredPin.length >= 4) return;
             
-            # Upload PDF
-            dbx.files_upload(
-                pdf_data,
-                dropbox_path,
-                mode=dropbox.files.WriteMode.overwrite
-            )
+            enteredPin += digit;
+            updatePinDots();
             
-            # Upload raw data JSON
-            dbx.files_upload(
-                json.dumps(raw_data, indent=2).encode('utf-8'),
-                raw_path,
-                mode=dropbox.files.WriteMode.overwrite
-            )
+            if (enteredPin.length === 4) {
+                setTimeout(() => validatePin(), 200);
+            }
+        }
+        
+        function deletePin() {
+            enteredPin = enteredPin.slice(0, -1);
+            updatePinDots();
+        }
+        
+        function clearPin() {
+            enteredPin = '';
+            updatePinDots();
+        }
+        
+        function updatePinDots() {
+            const dots = document.querySelectorAll('.pin-dot');
+            dots.forEach((dot, i) => {
+                if (i < enteredPin.length) {
+                    dot.classList.add('filled');
+                } else {
+                    dot.classList.remove('filled');
+                }
+            });
+        }
+        
+        function validatePin() {
+            const storedPin = localStorage.getItem('pcms_pin');
             
-            return jsonify({
-                'success': True,
-                'message': 'Certificate generated and uploaded',
-                'dropbox_path': dropbox_path,
-                'raw_data_path': raw_path
-            }), 200, headers
+            if (isSettingPin) {
+                if (!newPinFirst) {
+                    // First entry of new PIN
+                    newPinFirst = enteredPin;
+                    enteredPin = '';
+                    updatePinDots();
+                    document.getElementById('pinMessage').textContent = 'Confirm your PIN';
+                } else {
+                    // Confirming new PIN
+                    if (enteredPin === newPinFirst) {
+                        localStorage.setItem('pcms_pin', enteredPin);
+                        unlockApp();
+                    } else {
+                        // PINs don't match
+                        shakePinPad();
+                        document.getElementById('pinMessage').textContent = 'PINs do not match. Try again';
+                        newPinFirst = '';
+                        enteredPin = '';
+                        updatePinDots();
+                    }
+                }
+            } else {
+                // Verifying existing PIN
+                if (enteredPin === storedPin) {
+                    unlockApp();
+                } else {
+                    shakePinPad();
+                    document.getElementById('pinMessage').textContent = 'Incorrect PIN. Try again';
+                    enteredPin = '';
+                    updatePinDots();
+                }
+            }
+        }
+        
+        function shakePinPad() {
+            const pinPad = document.getElementById('pinPad');
+            pinPad.style.animation = 'shake 0.5s';
+            setTimeout(() => pinPad.style.animation = '', 500);
+        }
+        
+        function unlockApp() {
+            document.getElementById('pinLockScreen').style.display = 'none';
+            document.getElementById('mainContainer').style.display = 'block';
+            enteredPin = '';
+            newPinFirst = '';
+            isSettingPin = false;
+            pendingResetCode = '';
+        }
+        
+        async function startPinReset() {
+            const email = localStorage.getItem('pcms_recovery_email');
+            if (!email) {
+                alert('No recovery email set. Please contact support.');
+                return;
+            }
             
-        except Exception as e:
-            return jsonify({
-                'success': False,
-                'error': f'Dropbox upload failed: {str(e)}',
-                'pdf_generated': True
-            }), 500, headers
+            // Generate 6-digit code
+            pendingResetCode = Math.floor(100000 + Math.random() * 900000).toString();
             
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500, headers
+            // Store code with expiry (10 minutes)
+            localStorage.setItem('pcms_reset_code', pendingResetCode);
+            localStorage.setItem('pcms_reset_expiry', Date.now() + 600000);
+            
+            document.getElementById('pinMessage').textContent = 'Sending code to ' + email.substring(0, 3) + '***';
+            document.getElementById('pinDots').style.display = 'none';
+            document.getElementById('pinPad').style.display = 'none';
+            document.getElementById('pinSetupLink').style.display = 'none';
+            
+            try {
+                const url = `${RESET_CODE_URL}?action=sendResetCode&email=${encodeURIComponent(email)}&code=${pendingResetCode}`;
+                const response = await fetch(url);
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('pinMessage').textContent = 'Code sent! Check your email';
+                    document.getElementById('resetCodeInput').style.display = 'block';
+                } else {
+                    document.getElementById('pinMessage').textContent = 'Failed to send code. Try again.';
+                    document.getElementById('pinDots').style.display = 'flex';
+                    document.getElementById('pinPad').style.display = 'grid';
+                    document.getElementById('pinSetupLink').style.display = 'block';
+                }
+            } catch (error) {
+                document.getElementById('pinMessage').textContent = 'Error sending code. Try again.';
+                document.getElementById('pinDots').style.display = 'flex';
+                document.getElementById('pinPad').style.display = 'grid';
+                document.getElementById('pinSetupLink').style.display = 'block';
+            }
+        }
+        
+        function verifyResetCode() {
+            const enteredCode = document.getElementById('resetCode').value.trim();
+            const storedCode = localStorage.getItem('pcms_reset_code');
+            const expiry = parseInt(localStorage.getItem('pcms_reset_expiry') || '0');
+            
+            if (Date.now() > expiry) {
+                alert('Code expired. Please request a new one.');
+                document.getElementById('resetCodeInput').style.display = 'none';
+                document.getElementById('pinDots').style.display = 'flex';
+                document.getElementById('pinPad').style.display = 'grid';
+                document.getElementById('pinSetupLink').style.display = 'block';
+                document.getElementById('pinMessage').textContent = 'Enter your 4-digit PIN';
+                return;
+            }
+            
+            if (enteredCode === storedCode) {
+                // Code verified - allow PIN reset
+                localStorage.removeItem('pcms_pin');
+                localStorage.removeItem('pcms_reset_code');
+                localStorage.removeItem('pcms_reset_expiry');
+                
+                isSettingPin = true;
+                newPinFirst = '';
+                enteredPin = '';
+                
+                document.getElementById('resetCodeInput').style.display = 'none';
+                document.getElementById('resetCode').value = '';
+                document.getElementById('pinDots').style.display = 'flex';
+                document.getElementById('pinPad').style.display = 'grid';
+                document.getElementById('pinMessage').textContent = 'Create a new 4-digit PIN';
+                updatePinDots();
+            } else {
+                alert('Incorrect code. Please try again.');
+            }
+        }
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Check PIN first
+            checkPinSetup();
+            
+            // Load AssetDB from localStorage or fetch
+            await loadAssetDB();
+            
+            // Load test history
+            await loadTestHistory();
+            
+            // Initialize tracker
+            initTracker();
+            
+            // Load pending tests from localStorage
+            loadPendingTests();
+            
+            // Check online status
+            updateOnlineStatus();
+            window.addEventListener('online', updateOnlineStatus);
+            window.addEventListener('offline', updateOnlineStatus);
+            
+            // Setup photo input handler
+            document.getElementById('photoInput').addEventListener('change', handlePhotoCapture);
+        });
+
+        // ============================================
+        // ASSET DATABASE
+        // ============================================
+        async function loadAssetDB() {
+            const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbwW93UDFh1y-psTu_gSP0HlVHy79QtTyOAKmEK6gY2c8qao1FzGh05x_OWqM4xRhvpU_A/exec';
+            
+            // Try to fetch fresh data from Google Sheets
+            try {
+                const response = await fetch(ASSETDB_URL);
+                if (response.ok) {
+                    assetDB = await response.json();
+                    localStorage.setItem('assetDB', JSON.stringify(assetDB));
+                    localStorage.setItem('assetDB_updated', new Date().toISOString());
+                    console.log(`Loaded ${assetDB.length} assets from Google Sheets`);
+                    return;
+                }
+            } catch (e) {
+                console.log('Could not fetch from Google Sheets, trying cache...');
+            }
+            
+            // Fall back to localStorage cache
+            const cached = localStorage.getItem('assetDB');
+            if (cached) {
+                assetDB = JSON.parse(cached);
+                console.log(`Loaded ${assetDB.length} assets from cache`);
+                return;
+            }
+            
+            // Last resort - try static JSON file
+            try {
+                const response = await fetch('assetdb.json');
+                if (response.ok) {
+                    assetDB = await response.json();
+                    localStorage.setItem('assetDB', JSON.stringify(assetDB));
+                    console.log(`Loaded ${assetDB.length} assets from file`);
+                }
+            } catch (e) {
+                console.log('AssetDB not available, will use manual entry');
+            }
+        }
+
+        async function loadTestHistory() {
+            const HISTORY_URL = 'https://script.google.com/macros/s/AKfycbwW93UDFh1y-psTu_gSP0HlVHy79QtTyOAKmEK6gY2c8qao1FzGh05x_OWqM4xRhvpU_A/exec?action=history';
+            
+            try {
+                const response = await fetch(HISTORY_URL);
+                if (response.ok) {
+                    testHistory = await response.json();
+                    localStorage.setItem('testHistory', JSON.stringify(testHistory));
+                    console.log(`Loaded ${testHistory.length} history records`);
+                    return;
+                }
+            } catch (e) {
+                console.log('Could not fetch history, trying cache...');
+            }
+            
+            // Fall back to cache
+            const cached = localStorage.getItem('testHistory');
+            if (cached) {
+                testHistory = JSON.parse(cached);
+                console.log(`Loaded ${testHistory.length} history records from cache`);
+            }
+        }
+
+        let historySearchTimeout;
+        function searchHistory(value) {
+            clearTimeout(historySearchTimeout);
+            
+            const resultsDiv = document.getElementById('historyResults');
+            
+            if (!value || value.trim().length < 2) {
+                resultsDiv.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <h3>Search Test History</h3>
+                        <p>Enter a serial number, customer name, or location</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            historySearchTimeout = setTimeout(() => {
+                const searchTerm = value.trim().toLowerCase();
+                
+                const matches = testHistory.filter(h => {
+                    const serial = String(h['Serial Number'] || '').toLowerCase();
+                    const customer = String(h['Customer'] || '').toLowerCase();
+                    const location = String(h['Facility/Location'] || '').toLowerCase();
+                    return serial.includes(searchTerm) || customer.includes(searchTerm) || location.includes(searchTerm);
+                });
+                
+                if (matches.length === 0) {
+                    resultsDiv.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">❌</div>
+                            <h3>No Results</h3>
+                            <p>No tests found matching "${value}"</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Sort by date (most recent first)
+                matches.sort((a, b) => {
+                    const dateA = new Date(a['Date'] || 0);
+                    const dateB = new Date(b['Date'] || 0);
+                    return dateB - dateA;
+                });
+                
+                resultsDiv.innerHTML = matches.slice(0, 20).map(h => {
+                    const date = h['Date'] ? new Date(h['Date']).toLocaleDateString() : 'Unknown';
+                    return `
+                        <div class="pending-item" style="cursor: pointer;" onclick="showHistoryDetail(${JSON.stringify(h).replace(/"/g, '&quot;')})">
+                            <div class="pending-info">
+                                <h4 style="font-family: 'JetBrains Mono', monospace;">${h['Serial Number'] || 'N/A'}</h4>
+                                <p>${h['Customer'] || ''} - ${h['Facility/Location'] || ''}</p>
+                                <p style="font-size: 11px; color: var(--gray-500);">Tested: ${date} by ${h['Tested By'] || 'Unknown'}</p>
+                            </div>
+                            <span class="pending-status" style="background: var(--green); color: white;">✓</span>
+                        </div>
+                    `;
+                }).join('');
+                
+                if (matches.length > 20) {
+                    resultsDiv.innerHTML += `<p style="text-align: center; padding: 12px; color: var(--gray-500);">Showing 20 of ${matches.length} results</p>`;
+                }
+            }, 300);
+        }
+        
+        function showHistoryDetail(record) {
+            const date = record['Date'] ? new Date(record['Date']).toLocaleDateString() : 'Unknown';
+            const details = `
+Serial Number: ${record['Serial Number'] || 'N/A'}
+Customer: ${record['Customer'] || 'N/A'}
+Location: ${record['Facility/Location'] || 'N/A'}
+Date Tested: ${date}
+Tested By: ${record['Tested By'] || 'N/A'}
+Manufacturer: ${record['Manufacturer/Model'] || 'N/A'}
+Accuracy: ${record['Accuracy (%)'] || 'N/A'}%
+GPS: ${record['GPS Coordinates'] || 'N/A'}
+            `;
+            alert(details);
+        }
+
+        // ============================================
+        // TRACKER
+        // ============================================
+        const TWICE_YEARLY_CUSTOMERS = ['New Braunfels Utilities', 'NBU', 'Johnson County SUD', 'Mid South', 'Guadalupe Blanco River Authority', 'GBRA'];
+        
+        let allCustomerStats = [];
+        
+        function initTracker() {
+            // Get unique customers from AssetDB
+            const customers = [...new Set(assetDB.map(a => a['Customer']).filter(c => c))].sort();
+            
+            // Calculate stats for each customer
+            const currentYear = new Date().getFullYear();
+            const previousYear = currentYear - 1;
+            const currentMonth = new Date().getMonth();
+            const currentRound = currentMonth < 6 ? 1 : 2;
+            
+            allCustomerStats = customers.map(customer => {
+                const customerMeters = assetDB.filter(a => a['Customer'] === customer);
+                const isSemiAnnual = TWICE_YEARLY_CUSTOMERS.some(c => 
+                    customer.toLowerCase().includes(c.toLowerCase())
+                );
+                
+                let due = 0;
+                let complete = 0;
+                let testDays = []; // Collect all test days to calculate average
+                
+                customerMeters.forEach(meter => {
+                    const serial = meter['Serial Number'];
+                    const assetFrequency = meter['Service Frequency'] || '';
+                    
+                    // Skip Call Outs
+                    if (assetFrequency === 'Call Out' || assetFrequency === 'None') return;
+                    
+                    const frequency = (!assetFrequency || assetFrequency === '') 
+                        ? (isSemiAnnual ? 'Semi-Annual' : 'Annual') 
+                        : assetFrequency;
+                    
+                    const tests = testHistory.filter(h => 
+                        String(h['Serial Number']) === String(serial)
+                    );
+                    
+                    // Find tests from previous year to determine typical test timing
+                    const testsPrevYear = tests.filter(t => {
+                        const testDate = new Date(t['Date']);
+                        return testDate.getFullYear() === previousYear;
+                    });
+                    
+                    // Collect day-of-year for each test (for averaging)
+                    testsPrevYear.forEach(t => {
+                        const testDate = new Date(t['Date']);
+                        const startOfYear = new Date(testDate.getFullYear(), 0, 0);
+                        const diff = testDate - startOfYear;
+                        const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+                        testDays.push(dayOfYear);
+                    });
+                    
+                    const testsThisYear = tests.filter(t => {
+                        const testDate = new Date(t['Date']);
+                        return testDate.getFullYear() === currentYear;
+                    });
+                    
+                    if (frequency === 'Semi-Annual') {
+                        const testedCurrentRound = testsThisYear.some(t => {
+                            const testDate = new Date(t['Date']);
+                            return currentRound === 1 ? testDate.getMonth() < 6 : testDate.getMonth() >= 6;
+                        });
+                        if (testedCurrentRound) complete++;
+                        else due++;
+                    } else {
+                        if (testsThisYear.length > 0) complete++;
+                        else due++;
+                    }
+                });
+                
+                const total = due + complete;
+                const progress = total > 0 ? Math.round((complete / total) * 100) : 0;
+                
+                // Calculate average test date
+                let avgMonth = 11; // Default to December
+                let avgDay = 15;
+                if (testDays.length > 0) {
+                    const avgDayOfYear = Math.round(testDays.reduce((a, b) => a + b, 0) / testDays.length);
+                    // Convert day of year back to month/day
+                    const tempDate = new Date(currentYear, 0, avgDayOfYear);
+                    avgMonth = tempDate.getMonth();
+                    avgDay = tempDate.getDate();
+                }
+                
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const typicalDate = testDays.length > 0 ? `${monthNames[avgMonth]} ${avgDay}` : null;
+                
+                return { customer, due, complete, total, progress, isSemiAnnual, avgMonth, avgDay, typicalDate };
+            }).filter(c => c.total > 0); // Only show customers with trackable meters
+            
+            // Sort by average test date
+            allCustomerStats.sort((a, b) => {
+                const dayA = (a.avgMonth * 31) + a.avgDay;
+                const dayB = (b.avgMonth * 31) + b.avgDay;
+                return dayA - dayB;
+            });
+            
+            renderTrackerDashboard();
+        }
+        
+        function renderTrackerDashboard() {
+            // Calculate overall stats
+            const currentYear = new Date().getFullYear();
+            const totalDue = allCustomerStats.reduce((sum, c) => sum + c.due, 0);
+            const totalComplete = allCustomerStats.reduce((sum, c) => sum + c.complete, 0);
+            const totalMeters = allCustomerStats.reduce((sum, c) => sum + c.total, 0);
+            const overallProgress = totalMeters > 0 ? Math.round((totalComplete / totalMeters) * 100) : 0;
+            
+            document.getElementById('currentYear').textContent = currentYear;
+            document.getElementById('overallProgress').textContent = overallProgress + '%';
+            document.getElementById('overallDue').textContent = totalDue;
+            document.getElementById('overallComplete').textContent = totalComplete;
+            document.getElementById('overallTotal').textContent = totalMeters;
+            
+            renderCalendarView(allCustomerStats);
+        }
+        
+        function renderCalendarView(customers) {
+            const calendarDiv = document.getElementById('trackerCalendar');
+            const currentMonth = new Date().getMonth();
+            const currentDay = new Date().getDate();
+            
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                               'July', 'August', 'September', 'October', 'November', 'December'];
+            
+            // Group customers by month
+            const customersByMonth = {};
+            for (let i = 0; i < 12; i++) {
+                customersByMonth[i] = [];
+            }
+            
+            customers.forEach(c => {
+                customersByMonth[c.avgMonth].push(c);
+            });
+            
+            // Sort customers within each month by day
+            for (let i = 0; i < 12; i++) {
+                customersByMonth[i].sort((a, b) => a.avgDay - b.avgDay);
+            }
+            
+            let html = '';
+            
+            for (let month = 0; month < 12; month++) {
+                const monthCustomers = customersByMonth[month];
+                const isCurrentMonth = month === currentMonth;
+                const isPastMonth = month < currentMonth;
+                
+                // Check if all customers in this month are complete
+                const allComplete = monthCustomers.length > 0 && monthCustomers.every(c => c.progress === 100);
+                const monthDue = monthCustomers.reduce((sum, c) => sum + c.due, 0);
+                
+                let monthStyle = 'background: var(--gray-100);';
+                if (isCurrentMonth) {
+                    monthStyle = 'background: var(--gold); background: linear-gradient(135deg, var(--gold) 0%, #e6b84d 100%);';
+                } else if (isPastMonth && allComplete) {
+                    monthStyle = 'background: var(--green); color: white;';
+                } else if (isPastMonth && monthDue > 0) {
+                    monthStyle = 'background: #ffebee;'; // Light red for overdue
+                }
+                
+                html += `
+                    <div style="border-bottom: 1px solid var(--gray-200);">
+                        <div style="padding: 12px 16px; ${monthStyle} display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: 600; ${isCurrentMonth ? 'color: var(--navy);' : ''}">${monthNames[month]}</span>
+                            <span style="font-size: 12px; ${isPastMonth && allComplete ? 'color: white;' : 'color: var(--gray-500);'}">
+                                ${monthCustomers.length > 0 ? `${monthCustomers.filter(c => c.progress === 100).length}/${monthCustomers.length} complete` : 'No tests scheduled'}
+                            </span>
+                        </div>
+                `;
+                
+                if (monthCustomers.length > 0) {
+                    html += '<div style="padding: 8px;">';
+                    
+                    monthCustomers.forEach(c => {
+                        const progressColor = c.progress === 100 ? 'var(--green)' : (c.due > 0 && month < currentMonth ? '#ef5350' : 'var(--gold)');
+                        const statusIcon = c.progress === 100 ? '✓' : (c.due > 0 && month < currentMonth ? '⚠️' : '');
+                        const semiAnnualBadge = c.isSemiAnnual ? '<span style="font-size: 9px; background: var(--teal); color: white; padding: 1px 4px; border-radius: 3px; margin-left: 4px;">2x</span>' : '';
+                        
+                        html += `
+                            <div style="padding: 10px; margin: 4px 0; background: white; border-radius: 8px; border-left: 4px solid ${progressColor}; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="showCustomerDetail('${c.customer.replace(/'/g, "\\'")}')">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <div style="font-weight: 500; font-size: 13px;">${statusIcon} ${c.customer}${semiAnnualBadge}</div>
+                                        <div style="font-size: 11px; color: var(--gray-500);">~${c.typicalDate || 'TBD'} • ${c.complete}/${c.total} meters</div>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <div style="font-size: 16px; font-weight: 600; color: ${progressColor};">${c.progress}%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                }
+                
+                html += '</div>';
+            }
+            
+            calendarDiv.innerHTML = html;
+        }
+        
+        function filterTrackerCustomers(searchTerm) {
+            // Not used in calendar view but kept for compatibility
+        }
+        
+        function showCustomerDetail(customer) {
+            document.getElementById('trackerCustomerList').style.display = 'none';
+            document.getElementById('trackerOverallSummary').style.display = 'none';
+            document.getElementById('trackerSearch').style.display = 'none';
+            document.getElementById('trackerDetail').style.display = 'block';
+            showCustomerMeters(customer);
+        }
+        
+        function showTrackerDashboard() {
+            document.getElementById('trackerCalendar').style.display = 'block';
+            document.getElementById('trackerOverallSummary').style.display = 'block';
+            document.getElementById('trackerDetail').style.display = 'none';
+        }
+        
+        function showCustomerDetail(customer) {
+            document.getElementById('trackerCalendar').style.display = 'none';
+            document.getElementById('trackerOverallSummary').style.display = 'none';
+            document.getElementById('trackerDetail').style.display = 'block';
+            showCustomerMeters(customer);
+        }
+        
+        function showCustomerMeters(customer) {
+            if (!customer) {
+                return;
+            }
+            
+            // Get all meters for this customer from AssetDB
+            const customerMeters = assetDB.filter(a => a['Customer'] === customer);
+            
+            // Determine if this is a semi-annual customer
+            const isSemiAnnualCustomer = TWICE_YEARLY_CUSTOMERS.some(c => 
+                customer.toLowerCase().includes(c.toLowerCase())
+            );
+            
+            // Current year and round
+            const currentYear = new Date().getFullYear();
+            const currentMonth = new Date().getMonth(); // 0-11
+            const currentRound = currentMonth < 6 ? 1 : 2;
+            
+            // Check which have been tested
+            const metersWithStatus = customerMeters.map(meter => {
+                const serial = meter['Serial Number'];
+                const assetFrequency = meter['Service Frequency'] || '';
+                
+                // Find all tests for this meter
+                const tests = testHistory.filter(h => 
+                    String(h['Serial Number']) === String(serial)
+                ).sort((a, b) => new Date(b['Date']) - new Date(a['Date']));
+                
+                const lastTest = tests[0];
+                const lastTestDate = lastTest ? new Date(lastTest['Date']) : null;
+                
+                // Determine frequency
+                let frequency = assetFrequency;
+                if (!frequency || frequency === '') {
+                    frequency = isSemiAnnualCustomer ? 'Semi-Annual' : 'Annual';
+                }
+                
+                // Check tests THIS YEAR
+                const testsThisYear = tests.filter(t => {
+                    const testDate = new Date(t['Date']);
+                    return testDate.getFullYear() === currentYear;
+                });
+                
+                // Check Round 1 (Jan-Jun) this year
+                const testedRound1 = testsThisYear.some(t => {
+                    const testDate = new Date(t['Date']);
+                    return testDate.getMonth() < 6;
+                });
+                
+                // Check Round 2 (Jul-Dec) this year
+                const testedRound2 = testsThisYear.some(t => {
+                    const testDate = new Date(t['Date']);
+                    return testDate.getMonth() >= 6;
+                });
+                
+                // Calculate if due (for current round only for semi-annual)
+                let isDue = true;
+                let roundStatus = null;
+                
+                if (frequency === 'Semi-Annual') {
+                    isDue = currentRound === 1 ? !testedRound1 : !testedRound2;
+                    roundStatus = {
+                        round1: testedRound1,
+                        round2: testedRound2,
+                        currentRound: currentRound
+                    };
+                } else if (frequency === 'Annual') {
+                    isDue = testsThisYear.length === 0;
+                } else if (frequency === 'Call Out' || frequency === 'None') {
+                    isDue = false;
+                }
+                
+                return {
+                    ...meter,
+                    lastTestDate,
+                    isDue,
+                    frequency,
+                    roundStatus,
+                    testedRound1,
+                    testedRound2,
+                    testedThisYear: testsThisYear.length > 0,
+                    lastTestBy: lastTest ? lastTest['Tested By'] : null
+                };
+            });
+            
+            // Filter out Call Outs and None from the tracker
+            const trackableMeters = metersWithStatus.filter(m => 
+                m.frequency !== 'Call Out' && m.frequency !== 'None'
+            );
+            
+            // Sort: due meters first, then by location
+            trackableMeters.sort((a, b) => {
+                if (a.isDue && !b.isDue) return -1;
+                if (!a.isDue && b.isDue) return 1;
+                return (a['Facility/Location'] || '').localeCompare(b['Facility/Location'] || '');
+            });
+            
+            // Check if customer has any semi-annual meters
+            const hasSemiAnnual = trackableMeters.some(m => m.frequency === 'Semi-Annual');
+            
+            // Calculate progress
+            const totalMeters = trackableMeters.length;
+            let summaryHTML = '';
+            
+            if (hasSemiAnnual) {
+                // Separate counts for Round 1 and Round 2
+                const round1Tested = trackableMeters.filter(m => m.testedRound1).length;
+                const round2Tested = trackableMeters.filter(m => m.testedRound2).length;
+                const round1Progress = totalMeters > 0 ? Math.round((round1Tested / totalMeters) * 100) : 0;
+                const round2Progress = totalMeters > 0 ? Math.round((round2Tested / totalMeters) * 100) : 0;
+                
+                document.getElementById('trackerSummary').style.display = 'block';
+                document.getElementById('trackerCustomerName').textContent = `${customer} - ${currentYear}`;
+                document.getElementById('trackerProgress').textContent = '';
+                document.getElementById('trackerProgressBar').style.width = '0%';
+                document.getElementById('trackerProgressBar').parentElement.style.display = 'none';
+                
+                // Add round-specific progress after summary
+                summaryHTML = `
+                    <div style="margin-top: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="font-size: 13px; ${currentRound === 1 ? 'font-weight: 600;' : ''}">Round 1 (Jan-Jun)</span>
+                            <span style="font-size: 13px; color: var(--teal); font-weight: 600;">${round1Tested}/${totalMeters}</span>
+                        </div>
+                        <div style="background: var(--gray-200); border-radius: 8px; height: 8px; overflow: hidden; margin-bottom: 12px;">
+                            <div style="background: ${currentRound === 1 ? 'var(--gold)' : 'var(--green)'}; height: 100%; width: ${round1Progress}%; transition: width 0.3s;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="font-size: 13px; ${currentRound === 2 ? 'font-weight: 600;' : ''}">Round 2 (Jul-Dec)</span>
+                            <span style="font-size: 13px; color: var(--teal); font-weight: 600;">${round2Tested}/${totalMeters}</span>
+                        </div>
+                        <div style="background: var(--gray-200); border-radius: 8px; height: 8px; overflow: hidden;">
+                            <div style="background: ${currentRound === 2 ? 'var(--gold)' : 'var(--green)'}; height: 100%; width: ${round2Progress}%; transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Annual - single progress bar
+                const testedMeters = trackableMeters.filter(m => !m.isDue).length;
+                const progress = totalMeters > 0 ? Math.round((testedMeters / totalMeters) * 100) : 0;
+                
+                document.getElementById('trackerSummary').style.display = 'block';
+                document.getElementById('trackerCustomerName').textContent = `${customer} - ${currentYear}`;
+                document.getElementById('trackerProgress').textContent = `${testedMeters}/${totalMeters} tested`;
+                document.getElementById('trackerProgressBar').parentElement.style.display = 'block';
+                document.getElementById('trackerProgressBar').style.width = progress + '%';
+            }
+            
+            // Render meter list
+            if (trackableMeters.length === 0) {
+                document.getElementById('trackerMeters').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <h3>No Trackable Meters</h3>
+                        <p>No meters in database for this customer (or all are Call Outs)</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            document.getElementById('trackerMeters').innerHTML = summaryHTML + trackableMeters.map(m => {
+                const lastTestStr = m.lastTestDate ? m.lastTestDate.toLocaleDateString() : 'Never';
+                const statusClass = m.isDue ? 'background: var(--gold); color: var(--navy);' : 'background: var(--green); color: white;';
+                const statusText = m.isDue ? 'DUE' : '✓';
+                
+                // Round badges for semi-annual
+                let roundBadges = '';
+                if (m.roundStatus) {
+                    const r1Class = m.roundStatus.round1 ? 'background: var(--green); color: white;' : 'background: var(--gray-300); color: var(--gray-600);';
+                    const r2Class = m.roundStatus.round2 ? 'background: var(--green); color: white;' : 'background: var(--gray-300); color: var(--gray-600);';
+                    roundBadges = `
+                        <span style="font-size: 10px; ${r1Class} padding: 2px 6px; border-radius: 4px; margin-right: 4px;">R1</span>
+                        <span style="font-size: 10px; ${r2Class} padding: 2px 6px; border-radius: 4px;">R2</span>
+                    `;
+                }
+                
+                return `
+                    <div class="pending-item" style="cursor: pointer;" onclick="startTestFromTracker('${String(m['Serial Number'] || '').replace(/'/g, "\\'")}')">
+                        <div class="pending-info">
+                            <h4 style="font-family: 'JetBrains Mono', monospace;">${m['Serial Number'] || 'N/A'}</h4>
+                            <p>${m['Facility/Location'] || 'Unknown Location'} ${roundBadges}</p>
+                            <p style="font-size: 11px; color: var(--gray-500);">Last tested: ${lastTestStr}</p>
+                        </div>
+                        <span class="pending-status" style="${statusClass}">${statusText}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function startTestFromTracker(serialNumber) {
+            if (serialNumber) {
+                lookupSerial(serialNumber);
+            }
+        }
+
+        // ============================================
+        // FIND NEAREST METER
+        // ============================================
+        function showFindNearbyOptions() {
+            const modalHTML = `
+                <div id="findNearbyModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: var(--white); margin: 20px; border-radius: 16px; overflow: hidden; width: 100%; max-width: 350px;">
+                        <div style="background: var(--navy); color: white; padding: 16px; display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="margin: 0; font-size: 16px;">📍 Find Nearby Meter</h3>
+                            <button onclick="document.getElementById('findNearbyModal').remove()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">×</button>
+                        </div>
+                        <div style="padding: 16px;">
+                            <div onclick="document.getElementById('findNearbyModal').remove(); findNearestMeter('facility');" style="padding: 20px; background: var(--gray-100); border-radius: 12px; margin-bottom: 12px; cursor: pointer;">
+                                <div style="font-size: 24px; margin-bottom: 8px;">🏭</div>
+                                <div style="font-weight: 600; font-size: 16px;">Facility Meters</div>
+                                <div style="font-size: 13px; color: var(--gray-500);">All meters within 1 mile</div>
+                            </div>
+                            <div onclick="document.getElementById('findNearbyModal').remove(); findNearestMeter('specific');" style="padding: 20px; background: var(--gray-100); border-radius: 12px; cursor: pointer;">
+                                <div style="font-size: 24px; margin-bottom: 8px;">🎯</div>
+                                <div style="font-weight: 600; font-size: 16px;">Specific Meter</div>
+                                <div style="font-size: 13px; color: var(--gray-500);">Closest meter within 25 feet</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+        
+        function findNearestMeter(mode) {
+            if (!navigator.geolocation) {
+                showToast('GPS not supported on this device', 'error');
+                return;
+            }
+            
+            const maxDistance = mode === 'facility' ? 5280 : 25; // 1 mile or 25 feet
+            const maxResults = mode === 'facility' ? 50 : 1;
+            
+            showLoading('Getting your location...');
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const myLat = position.coords.latitude;
+                    const myLng = position.coords.longitude;
+                    
+                    document.getElementById('loadingText').textContent = 'Finding nearby meters...';
+                    
+                    // Get meters with GPS coordinates
+                    const metersWithGPS = assetDB.filter(a => {
+                        const gps = a['GPS Coordinates'];
+                        return gps && gps.includes(',');
+                    });
+                    
+                    if (metersWithGPS.length === 0) {
+                        hideLoading();
+                        showToast('No meters with GPS coordinates in database', 'error');
+                        return;
+                    }
+                    
+                    // Calculate distance to each meter
+                    const metersWithDistance = metersWithGPS.map(meter => {
+                        const gps = meter['GPS Coordinates'];
+                        const [lat, lng] = gps.split(',').map(s => parseFloat(s.trim()));
+                        const distance = calculateDistance(myLat, myLng, lat, lng);
+                        return { ...meter, distance, lat, lng };
+                    });
+                    
+                    // Filter by max distance and sort
+                    const nearbyMeters = metersWithDistance
+                        .filter(m => m.distance <= maxDistance)
+                        .sort((a, b) => a.distance - b.distance)
+                        .slice(0, maxResults);
+                    
+                    hideLoading();
+                    
+                    if (nearbyMeters.length === 0) {
+                        const radiusText = mode === 'facility' ? '1 mile' : '25 feet';
+                        showToast(`No meters found within ${radiusText}`, 'error');
+                        return;
+                    }
+                    
+                    showNearestMeters(nearbyMeters, myLat, myLng, mode);
+                },
+                (error) => {
+                    hideLoading();
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            showToast('GPS permission denied', 'error');
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            showToast('Location unavailable', 'error');
+                            break;
+                        case error.TIMEOUT:
+                            showToast('GPS timeout', 'error');
+                            break;
+                        default:
+                            showToast('GPS error', 'error');
+                    }
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 60000
+                }
+            );
+        }
+        
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            // Haversine formula for distance in feet
+            const R = 20902231; // Earth radius in feet
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+        
+        function formatDistance(feet) {
+            if (feet < 528) {
+                return Math.round(feet) + ' ft';
+            } else {
+                return (feet / 5280).toFixed(2) + ' mi';
+            }
+        }
+        
+        function showNearestMeters(meters, myLat, myLng, mode) {
+            const title = mode === 'facility' ? '🏭 Facility Meters (within 1 mile)' : '🎯 Specific Meter (within 25 ft)';
+            // Create modal content
+            const modalHTML = `
+                <div id="nearestModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; overflow-y: auto;">
+                    <div style="background: var(--white); margin: 20px; border-radius: 16px; overflow: hidden;">
+                        <div style="background: var(--navy); color: white; padding: 16px; display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="margin: 0; font-size: 16px;">${title}</h3>
+                            <button onclick="document.getElementById('nearestModal').remove()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">×</button>
+                        </div>
+                        <div style="padding: 12px;">
+                            <p style="font-size: 12px; color: var(--gray-500); margin-bottom: 12px;">Your location: ${myLat.toFixed(6)}, ${myLng.toFixed(6)}</p>
+                            ${meters.map((m, i) => `
+                                <div style="padding: 12px; border-bottom: 1px solid var(--gray-200); cursor: pointer;" onclick="selectNearestMeter('${String(m['Serial Number'] || '').replace(/'/g, "\\'")}')">
+                                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                                        <div>
+                                            <div style="font-weight: 600; font-family: 'JetBrains Mono', monospace;">${m['Serial Number'] || 'N/A'}</div>
+                                            <div style="font-size: 13px; color: var(--gray-600);">${m['Customer'] || ''}</div>
+                                            <div style="font-size: 12px; color: var(--gray-500);">${m['Facility/Location'] || ''}</div>
+                                        </div>
+                                        <div style="text-align: right;">
+                                            <div style="font-weight: 600; color: var(--teal);">${formatDistance(m.distance)}</div>
+                                            <div style="font-size: 11px; color: var(--gray-500);">#${i + 1}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+        
+        function selectNearestMeter(serialNumber) {
+            document.getElementById('nearestModal').remove();
+            if (serialNumber) {
+                lookupSerial(serialNumber);
+            }
+        }
+
+        let searchTimeout;
+        function autoSearchSerial(value) {
+            // Clear previous timeout
+            clearTimeout(searchTimeout);
+            
+            const suggestionsDiv = document.getElementById('serialSuggestions');
+            
+            if (!value || value.trim().length < 2) {
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+            
+            // Debounce - wait 300ms after typing stops
+            searchTimeout = setTimeout(() => {
+                const searchTerm = value.trim().toLowerCase();
+                
+                // Search by serial number or Asset_ID
+                const matches = assetDB.filter(a => {
+                    const serial = String(a['Serial Number'] || '').toLowerCase();
+                    const assetId = String(a['Asset_ID'] || '').toLowerCase();
+                    return serial.includes(searchTerm) || assetId.includes(searchTerm);
+                }).slice(0, 5); // Limit to 5 results
+                
+                if (matches.length === 0) {
+                    suggestionsDiv.style.display = 'none';
+                    return;
+                }
+                
+                suggestionsDiv.innerHTML = matches.map(a => `
+                    <div style="padding: 12px; border-bottom: 1px solid var(--gray-100); cursor: pointer;" 
+                         onclick="selectSuggestion('${a['Serial Number'] || a['Asset_ID']}')">
+                        <div style="font-weight: 600; font-family: 'JetBrains Mono', monospace;">${a['Serial Number'] || a['Asset_ID']}</div>
+                        <div style="font-size: 12px; color: var(--gray-500);">${a['Customer'] || ''} - ${a['Facility/Location'] || ''}</div>
+                    </div>
+                `).join('');
+                
+                suggestionsDiv.style.display = 'block';
+            }, 300);
+        }
+        
+        function selectSuggestion(serial) {
+            document.getElementById('manualSerial').value = serial;
+            document.getElementById('serialSuggestions').style.display = 'none';
+            lookupSerial(serial);
+        }
+
+        function lookupSerial(serial) {
+            if (!serial || serial.trim() === '') {
+                showToast('Please enter a serial number', 'error');
+                return;
+            }
+            
+            serial = serial.trim();
+            const matches = assetDB.filter(a => 
+                a['Serial Number'] && 
+                String(a['Serial Number']).toLowerCase() === serial.toLowerCase()
+            );
+            
+            if (matches.length === 0) {
+                // Check Asset_ID as fallback
+                const idMatches = assetDB.filter(a => 
+                    a['Asset_ID'] && 
+                    String(a['Asset_ID']).toLowerCase() === serial.toLowerCase()
+                );
+                
+                if (idMatches.length === 0) {
+                    showToast('Meter not found in database', 'error');
+                    showScreen('formScreen');
+                    resetForm();
+                    document.getElementById('formSerial').value = serial;
+                    return;
+                }
+                
+                populateFromAsset(idMatches[0]);
+            } else if (matches.length === 1) {
+                populateFromAsset(matches[0]);
+            } else {
+                // Multiple matches - for now, use first one
+                // TODO: Show selection modal
+                populateFromAsset(matches[0]);
+                showToast(`Found ${matches.length} meters with this serial`, 'info');
+            }
+        }
+
+        function populateFromAsset(asset) {
+            showScreen('formScreen');
+            
+            // Show match card
+            const matchCard = document.getElementById('matchCard');
+            matchCard.style.display = 'block';
+            document.getElementById('matchSerial').textContent = asset['Serial Number'] || asset['Asset_ID'] || '-';
+            document.getElementById('matchCustomer').textContent = asset['Customer'] || '-';
+            document.getElementById('matchLocation').textContent = asset['Facility/Location'] || '-';
+            
+            // Populate form fields
+            document.getElementById('formCustomer').value = asset['Customer'] || '';
+            document.getElementById('formLocation').value = asset['Facility/Location'] || '';
+            document.getElementById('formSerial').value = asset['Serial Number'] || '';
+            document.getElementById('formManufacturer').value = asset['Manufacturer/Model'] || '';
+            document.getElementById('formWaterType').value = asset['Water/Wastewater'] || '';
+            
+            // Set service frequency from AssetDB or default based on customer
+            if (asset['Service Frequency']) {
+                document.getElementById('formServiceFrequency').value = asset['Service Frequency'];
+            } else {
+                // Default: Semi-Annual for NBU/Johnson County, Annual for others
+                const customer = asset['Customer'] || '';
+                const isTwiceYearly = TWICE_YEARLY_CUSTOMERS.some(c => 
+                    customer.toLowerCase().includes(c.toLowerCase())
+                );
+                document.getElementById('formServiceFrequency').value = isTwiceYearly ? 'Semi-Annual' : 'Annual';
+            }
+            
+            // Pre-select service type if known
+            if (asset['Service Type']) {
+                const serviceType = asset['Service Type'];
+                const option = document.querySelector(`.service-type-option[data-type="${serviceType}"]`);
+                if (option) {
+                    selectServiceType(option);
+                }
+            }
+            
+            // Pre-fill service-specific fields
+            if (asset['Pipe Material']) {
+                document.getElementById('formPipeMaterial').value = asset['Pipe Material'];
+            }
+            if (asset['Pipe Size (O.D.)']) {
+                document.getElementById('formPipeSize').value = asset['Pipe Size (O.D.)'];
+            }
+            if (asset['Primary Device Type']) {
+                document.getElementById('formDeviceType').value = asset['Primary Device Type'];
+            }
+            if (asset['Method of Verification']) {
+                document.getElementById('formMethodCP').value = asset['Method of Verification'];
+                document.getElementById('formMethodOC').value = asset['Method of Verification'];
+            }
+            if (asset['Range']) {
+                document.getElementById('formRange').value = asset['Range'];
+            }
+            if (asset['Units']) {
+                document.getElementById('formUnitsOC').value = asset['Units'];
+            }
+            
+            showToast('Meter data loaded!', 'success');
+        }
+
+        // ============================================
+        // SCREEN MANAGEMENT
+        // ============================================
+        function showScreen(screenId) {
+            // Hide all screens
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            
+            // Show target screen
+            document.getElementById(screenId).classList.add('active');
+            currentScreen = screenId;
+            
+            // Handle back button visibility
+            const backBtn = document.getElementById('backBtn');
+            backBtn.style.display = screenId === 'homeScreen' ? 'none' : 'block';
+            
+            // Handle form nav visibility
+            document.getElementById('formNav').style.display = 
+                screenId === 'formScreen' ? 'flex' : 'none';
+            
+            // Handle camera
+            if (screenId === 'scannerScreen') {
+                startCamera();
+            } else {
+                stopCamera();
+            }
+            
+            // Reset tracker to dashboard view when entering
+            if (screenId === 'trackerScreen') {
+                showTrackerDashboard();
+                initTracker(); // Refresh data
+            }
+            
+            // Update pending count
+            updatePendingCount();
+        }
+
+        document.getElementById('backBtn').addEventListener('click', () => {
+            if (currentScreen === 'scannerScreen' || currentScreen === 'formScreen') {
+                showScreen('homeScreen');
+            } else if (currentScreen === 'pendingScreen' || currentScreen === 'historyScreen' || currentScreen === 'trackerScreen') {
+                showScreen('homeScreen');
+            }
+        });
+
+        // ============================================
+        // CAMERA & OCR SCANNING
+        // ============================================
+        async function startCamera() {
+            try {
+                const video = document.getElementById('video-preview');
+                videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: 'environment', 
+                        width: { ideal: 1920 }, 
+                        height: { ideal: 1080 },
+                        focusMode: 'continuous'
+                    }
+                });
+                video.srcObject = videoStream;
+                // Reset scan result
+                document.getElementById('scanResult').style.display = 'none';
+                document.getElementById('scannerControls').style.display = 'block';
+            } catch (err) {
+                console.error('Camera error:', err);
+                showToast('Could not access camera', 'error');
+            }
+        }
+
+        function stopCamera() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+            }
+        }
+
+        function preprocessImage(canvas, ctx) {
+            // Get image data
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            
+            // Convert to grayscale and increase contrast
+            for (let i = 0; i < data.length; i += 4) {
+                // Grayscale
+                const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                
+                // Increase contrast
+                const contrast = 1.5;
+                const factor = (259 * (contrast * 100 + 255)) / (255 * (259 - contrast * 100));
+                const newVal = Math.min(255, Math.max(0, factor * (avg - 128) + 128));
+                
+                // Threshold to black/white for cleaner OCR
+                const threshold = newVal > 140 ? 255 : 0;
+                
+                data[i] = threshold;
+                data[i + 1] = threshold;
+                data[i + 2] = threshold;
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        const OCR_API_KEY = 'K87826259088957';
+        const OCR_API_URL = 'https://api.ocr.space/parse/image';
+
+        async function captureAndScan() {
+            const video = document.getElementById('video-preview');
+            const canvas = document.getElementById('scanCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size to video size
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Draw current video frame
+            ctx.drawImage(video, 0, 0);
+            
+            // Get image data
+            const imageData = canvas.toDataURL('image/jpeg', 0.9);
+            
+            // Show loading
+            showLoading('Uploading image...');
+            
+            let allMatches = new Set();
+            
+            try {
+                // OCR.space API call - Engine 2 (better for photos)
+                const formData = new FormData();
+                formData.append('base64Image', imageData);
+                formData.append('apikey', OCR_API_KEY);
+                formData.append('language', 'eng');
+                formData.append('isOverlayRequired', 'false');
+                formData.append('scale', 'true');
+                formData.append('OCREngine', '2');
+                
+                document.getElementById('loadingText').textContent = 'Scanning with Engine 2...';
+                
+                let response = await fetch(OCR_API_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                let result = await response.json();
+                
+                if (result.ParsedResults && result.ParsedResults[0]) {
+                    extractOCRMatches(result.ParsedResults[0].ParsedText || '', allMatches);
+                }
+                
+                // Try Engine 1 as well
+                document.getElementById('loadingText').textContent = 'Scanning with Engine 1...';
+                formData.set('OCREngine', '1');
+                
+                response = await fetch(OCR_API_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                result = await response.json();
+                
+                if (result.ParsedResults && result.ParsedResults[0]) {
+                    extractOCRMatches(result.ParsedResults[0].ParsedText || '', allMatches);
+                }
+                
+                hideLoading();
+                
+                // Convert to array and sort
+                const combined = Array.from(allMatches);
+                sortOCRResults(combined);
+                
+                if (combined.length > 0) {
+                    // Show results for selection
+                    displayOCRResults(combined);
+                } else {
+                    showToast('No text detected. Try again or enter manually.', 'error');
+                }
+                
+            } catch (err) {
+                hideLoading();
+                console.error('OCR error:', err);
+                showToast('Scan failed. Please try again.', 'error');
+            }
+        }
+        
+        function extractOCRMatches(text, matchSet) {
+            // Clean up common OCR errors
+            let cleaned = text
+                .replace(/[oO]/g, '0')
+                .replace(/[lI]/g, '1')
+                .replace(/[sS](?=\d)/g, '5')
+                .replace(/[zZ]/g, '2')
+                .replace(/[bB](?=\d)/g, '8');
+            
+            // Get pure numbers (5+ digits) - likely serial numbers
+            const pureNumbers = cleaned.match(/\b\d{5,}\b/g) || [];
+            pureNumbers.forEach(n => matchSet.add(n));
+            
+            // Get alphanumeric (4+ chars)
+            const alphanumeric = text.match(/\b[A-Z0-9][A-Z0-9\-]{3,}[A-Z0-9]\b/gi) || [];
+            alphanumeric.forEach(n => matchSet.add(n.toUpperCase()));
+            
+            // Find numbers with spaces
+            const spacedNumbers = cleaned.match(/\b\d[\d\s]{4,}\d\b/g) || [];
+            spacedNumbers.forEach(n => matchSet.add(n.replace(/\s/g, '')));
+        }
+        
+        function sortOCRResults(items) {
+            items.sort((a, b) => {
+                // Pure numbers 6-10 digits first
+                const aIsPureNum = /^\d{6,10}$/.test(a);
+                const bIsPureNum = /^\d{6,10}$/.test(b);
+                if (aIsPureNum && !bIsPureNum) return -1;
+                if (!aIsPureNum && bIsPureNum) return 1;
+                return b.length - a.length;
+            });
+        }
+        
+        function displayOCRResults(items) {
+            // Hide scanner controls, show results
+            document.getElementById('scannerControls').style.display = 'none';
+            
+            // Create results HTML
+            const resultsHTML = `
+                <div id="ocrResults" style="padding: 16px; background: var(--white); border-radius: 12px; margin: 16px;">
+                    <p style="font-size: 12px; color: var(--gray-500); margin-bottom: 12px;">DETECTED TEXT - TAP TO SELECT:</p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
+                        ${items.slice(0, 10).map(item => `
+                            <button class="btn btn-secondary" onclick="selectOCRResult('${item}')" style="font-family: 'JetBrains Mono', monospace; font-size: 14px;">
+                                ${item}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-outline" onclick="retryScan()" style="flex: 1;">🔄 Retry</button>
+                    </div>
+                </div>
+            `;
+            
+            // Insert after scanner controls
+            const existingResults = document.getElementById('ocrResults');
+            if (existingResults) existingResults.remove();
+            
+            document.getElementById('scannerControls').insertAdjacentHTML('afterend', resultsHTML);
+            
+            showToast(`Found ${items.length} items - tap to select`, 'success');
+        }
+        
+        function selectOCRResult(value) {
+            // Remove results panel
+            const resultsPanel = document.getElementById('ocrResults');
+            if (resultsPanel) resultsPanel.remove();
+            
+            // Show confirmation
+            document.getElementById('detectedSerial').value = value;
+            document.getElementById('scanResult').style.display = 'block';
+            
+            showToast(`Selected: ${value}`, 'success');
+        }
+
+        function retryScan() {
+            // Remove results panel if exists
+            const resultsPanel = document.getElementById('ocrResults');
+            if (resultsPanel) resultsPanel.remove();
+            
+            document.getElementById('scanResult').style.display = 'none';
+            document.getElementById('scannerControls').style.display = 'block';
+            document.getElementById('detectedSerial').value = '';
+        }
+
+        function acceptSerial() {
+            const serial = document.getElementById('detectedSerial').value.trim();
+            if (serial) {
+                lookupSerial(serial);
+            } else {
+                showToast('Please enter a serial number', 'error');
+            }
+        }
+
+        // ============================================
+        // FORM HANDLING
+        // ============================================
+        function resetForm() {
+            // Clear editing state
+            editingTestId = null;
+            
+            // Hide match card
+            document.getElementById('matchCard').style.display = 'none';
+            
+            // Clear all inputs
+            document.querySelectorAll('.form-input, .form-select, .form-textarea').forEach(input => {
+                if (input.id === 'formTestedBy') {
+                    input.value = 'Mick Bartlett'; // Default
+                } else if (input.id === 'formServiceFrequency') {
+                    input.value = 'Annual'; // Default frequency
+                } else {
+                    input.value = '';
+                }
+            });
+            
+            // Reset service type
+            selectedServiceType = null;
+            document.querySelectorAll('.service-type-option').forEach(o => o.classList.remove('selected'));
+            document.querySelectorAll('.conditional-fields').forEach(f => f.classList.remove('visible'));
+            
+            // Reset startup toggle
+            document.getElementById('formStartup').checked = false;
+            isStartup = false;
+            toggleStartup();
+            
+            // Reset photos
+            photos = [null, null, null];
+            document.querySelectorAll('.photo-slot').forEach((slot, i) => {
+                slot.innerHTML = '<span class="add-icon">+</span>';
+            });
+        }
+
+        function selectServiceType(element) {
+            // Update selection
+            document.querySelectorAll('.service-type-option').forEach(o => o.classList.remove('selected'));
+            element.classList.add('selected');
+            selectedServiceType = element.dataset.type;
+            
+            // Show/hide conditional fields
+            document.querySelectorAll('.conditional-fields').forEach(f => f.classList.remove('visible'));
+            
+            switch (selectedServiceType) {
+                case 'Closed Pipe':
+                    document.getElementById('closedPipeFields').classList.add('visible');
+                    break;
+                case 'Open Channel':
+                    document.getElementById('openChannelFields').classList.add('visible');
+                    break;
+                case 'Loop Test':
+                    document.getElementById('loopTestFields').classList.add('visible');
+                    break;
+                case 'Chart Recorder':
+                    document.getElementById('chartRecorderFields').classList.add('visible');
+                    break;
+            }
+            
+            // Update before/after field visibility based on startup status
+            toggleStartup();
+        }
+
+        function toggleStartup() {
+            isStartup = document.getElementById('formStartup').checked;
+            
+            // Show/hide before fields based on startup status
+            document.querySelectorAll('.before-field').forEach(field => {
+                field.style.display = isStartup ? 'none' : 'block';
+            });
+            
+            // Update after field labels for startup
+            document.querySelectorAll('.after-field label').forEach(label => {
+                if (isStartup) {
+                    label.textContent = label.textContent.replace(' (After)', ' (Initial)');
+                } else {
+                    label.textContent = label.textContent.replace(' (Initial)', ' (After)');
+                }
+            });
+        }
+
+        // ============================================
+        // PHOTO CAPTURE
+        // ============================================
+        function capturePhoto(index) {
+            currentPhotoIndex = index;
+            document.getElementById('photoInput').click();
+        }
+
+        function handlePhotoCapture(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                photos[currentPhotoIndex] = e.target.result;
+                
+                // Update UI
+                const slot = document.querySelectorAll('.photo-slot')[currentPhotoIndex];
+                slot.innerHTML = `
+                    <img src="${e.target.result}" alt="Photo ${currentPhotoIndex + 1}">
+                    <button class="remove-photo" onclick="removePhoto(${currentPhotoIndex}, event)">×</button>
+                `;
+            };
+            reader.readAsDataURL(file);
+            
+            // Reset input so same file can be selected again
+            event.target.value = '';
+        }
+
+        function removePhoto(index, event) {
+            event.stopPropagation();
+            photos[index] = null;
+            const slot = document.querySelectorAll('.photo-slot')[index];
+            slot.innerHTML = '<span class="add-icon">+</span>';
+        }
+
+        // ============================================
+        // GPS CAPTURE
+        // ============================================
+        function captureGPS() {
+            const gpsInput = document.getElementById('formGPS');
+            
+            if (!navigator.geolocation) {
+                showToast('GPS not supported on this device', 'error');
+                return;
+            }
+            
+            gpsInput.value = 'Getting location...';
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude.toFixed(6);
+                    const lng = position.coords.longitude.toFixed(6);
+                    gpsInput.value = `${lat}, ${lng}`;
+                    showToast('GPS captured!', 'success');
+                },
+                (error) => {
+                    gpsInput.value = '';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            showToast('GPS permission denied', 'error');
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            showToast('GPS unavailable', 'error');
+                            break;
+                        case error.TIMEOUT:
+                            showToast('GPS timeout', 'error');
+                            break;
+                        default:
+                            showToast('GPS error', 'error');
+                    }
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 60000
+                }
+            );
+        }
+
+        // ============================================
+        // SAVE & SYNC
+        // ============================================
+        function saveTest() {
+            // Validate required fields
+            const customer = document.getElementById('formCustomer').value.trim();
+            const location = document.getElementById('formLocation').value.trim();
+            
+            if (!customer || !location) {
+                showToast('Customer and Location are required', 'error');
+                return;
+            }
+            
+            if (!selectedServiceType) {
+                showToast('Please select a service type', 'error');
+                return;
+            }
+            
+            // Build test record
+            const testRecord = {
+                id: Date.now().toString(),
+                timestamp: new Date().toISOString(),
+                serviceType: selectedServiceType,
+                isStartup: isStartup,
+                serviceFrequency: document.getElementById('formServiceFrequency').value,
+                
+                // Common fields
+                customer: customer,
+                location: location,
+                gpsCoordinates: document.getElementById('formGPS').value.trim(),
+                serialNumber: document.getElementById('formSerial').value.trim(),
+                manufacturer: document.getElementById('formManufacturer').value.trim(),
+                waterType: document.getElementById('formWaterType').value,
+                meterReading: document.getElementById('formMeterReading').value.trim(),
+                calibration: document.getElementById('formCalibration').value.trim(),
+                programming: document.getElementById('formProgramming').value.trim(),
+                notes: document.getElementById('formNotes').value.trim(),
+                techNotes: document.getElementById('formTechNotes').value.trim(),
+                testedBy: document.getElementById('formTestedBy').value.trim(),
+                photos: photos.filter(p => p !== null)
+            };
+            
+            // Add service-specific fields
+            switch (selectedServiceType) {
+                case 'Closed Pipe':
+                    testRecord.pipeMaterial = document.getElementById('formPipeMaterial').value;
+                    testRecord.pipeSize = document.getElementById('formPipeSize').value;
+                    testRecord.method = document.getElementById('formMethodCP').value;
+                    testRecord.valFlowBefore = document.getElementById('formValFlowBefore').value;
+                    testRecord.cusFlowBefore = document.getElementById('formCusFlowBefore').value;
+                    testRecord.valFlowAfter = document.getElementById('formValFlowAfter').value;
+                    testRecord.cusFlowAfter = document.getElementById('formCusFlowAfter').value;
+                    break;
+                    
+                case 'Open Channel':
+                    testRecord.deviceType = document.getElementById('formDeviceType').value;
+                    testRecord.range = document.getElementById('formRange').value;
+                    testRecord.units = document.getElementById('formUnitsOC').value;
+                    testRecord.method = document.getElementById('formMethodOC').value;
+                    testRecord.levelChannelBefore = document.getElementById('formLevelChannelBefore').value;
+                    testRecord.levelMeterBefore = document.getElementById('formLevelMeterBefore').value;
+                    testRecord.levelChannelAfter = document.getElementById('formLevelChannelAfter').value;
+                    testRecord.levelMeterAfter = document.getElementById('formLevelMeterAfter').value;
+                    break;
+                    
+                case 'Loop Test':
+                    testRecord.lowDesired = document.getElementById('formLowDesired').value;
+                    testRecord.lowMeasured = document.getElementById('formLowMeasured').value;
+                    testRecord.midDesired = document.getElementById('formMidDesired').value;
+                    testRecord.midMeasured = document.getElementById('formMidMeasured').value;
+                    testRecord.highDesired = document.getElementById('formHighDesired').value;
+                    testRecord.highMeasured = document.getElementById('formHighMeasured').value;
+                    break;
+                    
+                case 'Chart Recorder':
+                    testRecord.measurementType = document.getElementById('formMeasurementType').value;
+                    testRecord.meterBefore = document.getElementById('formMeterBefore').value;
+                    testRecord.chartBefore = document.getElementById('formChartBefore').value;
+                    testRecord.meterAfter = document.getElementById('formMeterAfter').value;
+                    testRecord.chartAfter = document.getElementById('formChartAfter').value;
+                    break;
+            }
+            
+            // Save to pending (or update existing)
+            if (editingTestId) {
+                // Update existing test
+                const index = pendingTests.findIndex(t => t.id === editingTestId);
+                if (index !== -1) {
+                    testRecord.id = editingTestId;
+                    pendingTests[index] = testRecord;
+                }
+                editingTestId = null;
+            } else {
+                // Add new test
+                pendingTests.push(testRecord);
+            }
+            savePendingTests();
+            
+            // Reset form for next entry
+            resetForm();
+            
+            showToast('Test saved! Ready to sync when online.', 'success');
+            showScreen('pendingScreen');
+            updatePendingCount();
+        }
+
+        let editingTestId = null;
+        
+        function editPendingTest(testId) {
+            const test = pendingTests.find(t => t.id === testId);
+            if (!test) return;
+            
+            editingTestId = testId;
+            showScreen('formScreen');
+            
+            // Populate form with test data
+            document.getElementById('formCustomer').value = test.customer || '';
+            document.getElementById('formLocation').value = test.location || '';
+            document.getElementById('formGPS').value = test.gpsCoordinates || '';
+            document.getElementById('formSerial').value = test.serialNumber || '';
+            document.getElementById('formManufacturer').value = test.manufacturer || '';
+            document.getElementById('formWaterType').value = test.waterType || '';
+            document.getElementById('formServiceFrequency').value = test.serviceFrequency || 'Annual';
+            document.getElementById('formMeterReading').value = test.meterReading || '';
+            document.getElementById('formCalibration').value = test.calibration || '';
+            document.getElementById('formProgramming').value = test.programming || '';
+            document.getElementById('formNotes').value = test.notes || '';
+            document.getElementById('formTechNotes').value = test.techNotes || '';
+            document.getElementById('formTestedBy').value = test.testedBy || 'Mick Bartlett';
+            
+            // Set startup toggle
+            isStartup = test.isStartup || false;
+            document.getElementById('formStartup').checked = isStartup;
+            toggleStartup();
+            
+            // Select service type
+            if (test.serviceType) {
+                const option = document.querySelector(`.service-type-option[data-type="${test.serviceType}"]`);
+                if (option) {
+                    selectServiceType(option);
+                }
+            }
+            
+            // Populate service-specific fields
+            switch (test.serviceType) {
+                case 'Closed Pipe':
+                    document.getElementById('formPipeMaterial').value = test.pipeMaterial || '';
+                    document.getElementById('formPipeSize').value = test.pipeSize || '';
+                    document.getElementById('formMethodCP').value = test.method || '';
+                    document.getElementById('formValFlowBefore').value = test.valFlowBefore || '';
+                    document.getElementById('formCusFlowBefore').value = test.cusFlowBefore || '';
+                    document.getElementById('formValFlowAfter').value = test.valFlowAfter || '';
+                    document.getElementById('formCusFlowAfter').value = test.cusFlowAfter || '';
+                    break;
+                case 'Open Channel':
+                    document.getElementById('formDeviceType').value = test.deviceType || '';
+                    document.getElementById('formRange').value = test.range || '';
+                    document.getElementById('formUnitsOC').value = test.units || '';
+                    document.getElementById('formMethodOC').value = test.method || '';
+                    document.getElementById('formLevelChannelBefore').value = test.levelChannelBefore || '';
+                    document.getElementById('formLevelMeterBefore').value = test.levelMeterBefore || '';
+                    document.getElementById('formLevelChannelAfter').value = test.levelChannelAfter || '';
+                    document.getElementById('formLevelMeterAfter').value = test.levelMeterAfter || '';
+                    break;
+                case 'Loop Test':
+                    document.getElementById('formLowDesired').value = test.lowDesired || '';
+                    document.getElementById('formLowMeasured').value = test.lowMeasured || '';
+                    document.getElementById('formMidDesired').value = test.midDesired || '';
+                    document.getElementById('formMidMeasured').value = test.midMeasured || '';
+                    document.getElementById('formHighDesired').value = test.highDesired || '';
+                    document.getElementById('formHighMeasured').value = test.highMeasured || '';
+                    break;
+                case 'Chart Recorder':
+                    document.getElementById('formMeasurementType').value = test.measurementType || '';
+                    document.getElementById('formMeterBefore').value = test.meterBefore || '';
+                    document.getElementById('formChartBefore').value = test.chartBefore || '';
+                    document.getElementById('formMeterAfter').value = test.meterAfter || '';
+                    document.getElementById('formChartAfter').value = test.chartAfter || '';
+                    break;
+            }
+            
+            // Load photos
+            photos = test.photos ? [...test.photos, null, null, null].slice(0, 3) : [null, null, null];
+            document.querySelectorAll('.photo-slot').forEach((slot, i) => {
+                if (photos[i]) {
+                    slot.innerHTML = `
+                        <img src="${photos[i]}" alt="Photo ${i + 1}">
+                        <button class="remove-photo" onclick="removePhoto(${i}, event)">×</button>
+                    `;
+                } else {
+                    slot.innerHTML = '<span class="add-icon">+</span>';
+                }
+            });
+            
+            showToast('Editing test - make changes and save', 'info');
+        }
+
+        function loadPendingTests() {
+            const stored = localStorage.getItem('pendingTests');
+            if (stored) {
+                pendingTests = JSON.parse(stored);
+            }
+            updatePendingCount();
+            updatePendingList();
+        }
+
+        function savePendingTests() {
+            localStorage.setItem('pendingTests', JSON.stringify(pendingTests));
+            updatePendingCount();
+            updatePendingList();
+        }
+
+        function updatePendingCount() {
+            const count = pendingTests.length;
+            document.getElementById('pendingCount').textContent = 
+                `${count} test${count !== 1 ? 's' : ''} waiting`;
+            
+            // Update sync badge
+            const badge = document.getElementById('syncBadge');
+            if (!navigator.onLine) {
+                badge.className = 'sync-badge offline';
+                badge.innerHTML = '<span>●</span> Offline';
+            } else if (count > 0) {
+                badge.className = 'sync-badge pending';
+                badge.innerHTML = `<span>●</span> ${count} pending`;
+            } else {
+                badge.className = 'sync-badge';
+                badge.innerHTML = '<span>●</span> Online';
+            }
+        }
+
+        function updatePendingList() {
+            const list = document.getElementById('pendingList');
+            
+            if (pendingTests.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">✅</div>
+                        <h3>All Synced</h3>
+                        <p>No pending tests to upload</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            list.innerHTML = pendingTests.map(test => `
+                <div class="pending-item" style="cursor: pointer;" onclick="editPendingTest('${test.id}')">
+                    <div class="pending-info">
+                        <h4>${test.customer}</h4>
+                        <p>${test.location} • ${test.serviceType}${test.isStartup ? ' (Startup)' : ''}</p>
+                        <p style="font-size: 11px; color: var(--gray-500);">Tap to edit</p>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                        <span class="pending-status waiting">Waiting</span>
+                        <button onclick="event.stopPropagation(); deletePendingTest('${test.id}')" style="background: none; border: none; color: var(--gray-400); font-size: 18px; cursor: pointer;">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function deletePendingTest(testId) {
+            if (confirm('Delete this test?')) {
+                pendingTests = pendingTests.filter(t => t.id !== testId);
+                savePendingTests();
+                showToast('Test deleted', 'info');
+            }
+        }
+
+        const CLOUD_FUNCTION_URL = 'https://generate-certificate-980517620937.us-central1.run.app';
+        const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzuiCNm54Nr3whYccOME2ZeMTXjUQn9fs47CZDPfFtzL4J1tdt1oXAvyyZwsnQj0KKn/exec';
+
+        async function syncPending() {
+            if (pendingTests.length === 0) {
+                showToast('No tests to sync', 'info');
+                return;
+            }
+            
+            if (!navigator.onLine) {
+                showToast('No internet connection', 'error');
+                return;
+            }
+            
+            showLoading('Syncing to cloud...');
+            
+            let successCount = 0;
+            let failCount = 0;
+            const failedTests = [];
+            
+            for (let i = 0; i < pendingTests.length; i++) {
+                const test = pendingTests[i];
+                document.getElementById('loadingText').textContent = `Syncing ${i + 1} of ${pendingTests.length}...`;
+                
+                let pdfSuccess = false;
+                let sheetSuccess = false;
+                
+                // 1. Generate PDF certificate
+                try {
+                    const pdfResponse = await fetch(CLOUD_FUNCTION_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(test)
+                    });
+                    
+                    const pdfResult = await pdfResponse.json();
+                    
+                    if (pdfResponse.ok && pdfResult.success) {
+                        pdfSuccess = true;
+                        console.log(`Certificate created: ${pdfResult.dropbox_path}`);
+                    } else {
+                        console.error(`Failed to create certificate: ${pdfResult.error}`);
+                    }
+                } catch (error) {
+                    console.error(`Error creating PDF: ${error}`);
+                }
+                
+                // 2. Sync to Google Sheets using hidden iframe form (without photos - too large)
+                try {
+                    // Create a copy of test without photos for Google Sheets
+                    const sheetData = {...test};
+                    delete sheetData.photos;  // Remove photos - too large for sheets
+                    
+                    // Create a hidden iframe and form
+                    const iframe = document.createElement('iframe');
+                    iframe.name = 'sheetFrame' + i;
+                    iframe.style.display = 'none';
+                    document.body.appendChild(iframe);
+                    
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = GOOGLE_SHEET_URL;
+                    form.target = iframe.name;
+                    
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'data';
+                    input.value = JSON.stringify(sheetData);
+                    form.appendChild(input);
+                    
+                    document.body.appendChild(form);
+                    form.submit();
+                    
+                    // Clean up after a delay
+                    setTimeout(() => {
+                        document.body.removeChild(form);
+                        document.body.removeChild(iframe);
+                    }, 2000);
+                    
+                    sheetSuccess = true;
+                    console.log('Synced to Google Sheets');
+                } catch (error) {
+                    console.error(`Error syncing to sheet: ${error}`);
+                }
+                
+                // 3. Update AssetDB with any new field data (if serial exists in DB)
+                if (test.serialNumber) {
+                    try {
+                        // Create a copy without photos
+                        const assetData = {...test};
+                        delete assetData.photos;
+                        
+                        const updateIframe = document.createElement('iframe');
+                        updateIframe.name = 'assetFrame' + i;
+                        updateIframe.style.display = 'none';
+                        document.body.appendChild(updateIframe);
+                        
+                        const updateForm = document.createElement('form');
+                        updateForm.method = 'POST';
+                        updateForm.action = ASSETDB_URL;
+                        updateForm.target = updateIframe.name;
+                        
+                        const updateInput = document.createElement('input');
+                        updateInput.type = 'hidden';
+                        updateInput.name = 'data';
+                        updateInput.value = JSON.stringify(assetData);
+                        updateForm.appendChild(updateInput);
+                        
+                        document.body.appendChild(updateForm);
+                        updateForm.submit();
+                        
+                        setTimeout(() => {
+                            document.body.removeChild(updateForm);
+                            document.body.removeChild(updateIframe);
+                        }, 2000);
+                        
+                        console.log('AssetDB update sent');
+                    } catch (error) {
+                        console.error(`Error updating AssetDB: ${error}`);
+                    }
+                    
+                    // 4. Add to Test History
+                    try {
+                        const historyData = {
+                            action: 'addHistory',
+                            customer: test.customer,
+                            location: test.location,
+                            timestamp: test.timestamp,
+                            testedBy: test.testedBy,
+                            manufacturer: test.manufacturer,
+                            serialNumber: test.serialNumber,
+                            accuracy: '', // Can be added later if needed
+                            gpsCoordinates: test.gpsCoordinates
+                        };
+                        
+                        const historyIframe = document.createElement('iframe');
+                        historyIframe.name = 'historyFrame' + i;
+                        historyIframe.style.display = 'none';
+                        document.body.appendChild(historyIframe);
+                        
+                        const historyForm = document.createElement('form');
+                        historyForm.method = 'POST';
+                        historyForm.action = ASSETDB_URL;
+                        historyForm.target = historyIframe.name;
+                        
+                        const historyInput = document.createElement('input');
+                        historyInput.type = 'hidden';
+                        historyInput.name = 'data';
+                        historyInput.value = JSON.stringify(historyData);
+                        historyForm.appendChild(historyInput);
+                        
+                        document.body.appendChild(historyForm);
+                        historyForm.submit();
+                        
+                        setTimeout(() => {
+                            document.body.removeChild(historyForm);
+                            document.body.removeChild(historyIframe);
+                        }, 2000);
+                        
+                        console.log('Test History updated');
+                    } catch (error) {
+                        console.error(`Error updating Test History: ${error}`);
+                    }
+                }
+                
+                // Consider success if either worked
+                if (pdfSuccess || sheetSuccess) {
+                    successCount++;
+                } else {
+                    failCount++;
+                    failedTests.push(test);
+                }
+            }
+            
+            // Keep only failed tests in pending
+            pendingTests = failedTests;
+            savePendingTests();
+            
+            hideLoading();
+            
+            if (failCount === 0) {
+                showToast(`${successCount} test${successCount !== 1 ? 's' : ''} synced successfully!`, 'success');
+            } else if (successCount === 0) {
+                showToast(`Sync failed. Check your connection.`, 'error');
+            } else {
+                showToast(`${successCount} synced, ${failCount} failed. Retry later.`, 'info');
+            }
+            
+            updatePendingList();
+        }
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        function updateOnlineStatus() {
+            updatePendingCount();
+        }
+
+        function showLoading(text = 'Processing...') {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loadingOverlay').classList.add('visible');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('visible');
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} visible`;
+            
+            setTimeout(() => {
+                toast.classList.remove('visible');
+            }, 3000);
+        }
+
+        // ============================================
+        // SERVICE WORKER REGISTRATION
+        // ============================================
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('Service Worker registered'))
+                .catch(err => console.log('Service Worker registration failed:', err));
+        }
+    </script>
+</body>
+</html>
