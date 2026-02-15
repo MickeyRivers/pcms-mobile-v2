@@ -2787,6 +2787,11 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 initTracker(); // Refresh data
             }
             
+            // Update pending list when showing pending screen
+            if (screenId === 'pendingScreen') {
+                updatePendingList();
+            }
+            
             // Update pending count
             updatePendingCount();
         }
