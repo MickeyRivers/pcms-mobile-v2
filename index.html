@@ -499,9 +499,12 @@
         }
 
         .toggle-switch input {
+            position: absolute;
+            width: 100%;
+            height: 100%;
             opacity: 0;
-            width: 0;
-            height: 0;
+            cursor: pointer;
+            z-index: 2;
         }
 
         .toggle-slider {
@@ -922,13 +925,13 @@
                 </p>
             </div>
 
-            <div class="manual-entry">
+            <div class="manual-entry" style="position: relative;">
                 <p>Can't scan? Enter manually:</p>
                 <div class="form-group">
                     <input type="text" class="form-input" id="manualSerial" placeholder="Enter serial number" oninput="autoSearchSerial(this.value)">
                 </div>
-                <div id="serialSuggestions" style="display: none; max-height: 200px; overflow-y: auto; background: var(--white); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-top: -8px; margin-bottom: 12px;"></div>
-                <button class="btn btn-outline btn-block" onclick="lookupSerial(document.getElementById('manualSerial').value)">
+                <div id="serialSuggestions" style="display: none; max-height: 200px; overflow-y: auto; background: #ffffff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); margin-top: 4px; margin-bottom: 12px; position: absolute; left: 0; right: 0; z-index: 9999; border: 2px solid var(--teal);"></div>
+                <button class="btn btn-outline btn-block" style="margin-top: 60px;" onclick="lookupSerial(document.getElementById('manualSerial').value)">
                     Search AssetDB
                 </button>
             </div>
@@ -967,9 +970,14 @@
                 </div>
 
                 <div class="form-group">
+                    <label class="form-label">Test Date</label>
+                    <input type="date" class="form-input" id="formDate">
+                </div>
+
+                <div class="form-group">
                     <label class="form-label">GPS Coordinates</label>
                     <div style="display: flex; gap: 8px;">
-                        <input type="text" class="form-input" id="formGPS" placeholder="Tap button to capture" readonly style="flex: 1;">
+                        <input type="text" class="form-input" id="formGPS" placeholder="Lat, Long or tap to capture" style="flex: 1;">
                         <button type="button" class="btn btn-secondary" onclick="captureGPS()" style="padding: 12px 16px;">📍</button>
                     </div>
                 </div>
@@ -1022,10 +1030,10 @@
                     </div>
                 </div>
 
-                <div class="startup-toggle">
+                <div class="startup-toggle" onclick="document.getElementById('formStartup').click()">
                     <label>Startup (New Installation)</label>
                     <div class="toggle-switch">
-                        <input type="checkbox" id="formStartup" onchange="toggleStartup()">
+                        <input type="checkbox" id="formStartup" onchange="toggleStartup()" onclick="event.stopPropagation()">
                         <span class="toggle-slider"></span>
                     </div>
                 </div>
@@ -1317,7 +1325,10 @@
 
         <!-- Tracker Screen -->
         <section class="screen" id="trackerScreen">
-            <div class="section-title">Testing Calendar</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div class="section-title" style="margin: 0;">Testing Calendar</div>
+                <button onclick="refreshTrackerData()" style="background: var(--teal); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;">🔄 Refresh</button>
+            </div>
             
             <!-- Overall Summary -->
             <div id="trackerOverallSummary" style="background: var(--navy); color: white; padding: 16px; border-radius: 12px; margin-bottom: 16px;">
@@ -1407,7 +1418,7 @@
         let isSettingPin = false;
         let newPinFirst = '';
         let pendingResetCode = '';
-        const RESET_CODE_URL = 'https://script.google.com/macros/s/AKfycbyeRZaddEQIiNb1_4G4yV1Cu1-VA3uKqf_0VBkj9v4XrRrB3ie0IVToFBX1G_xzKRYglw/exec';
+        const RESET_CODE_URL = 'https://script.google.com/macros/s/AKfycbylCjhUdLU-Pg5mfjl16Qsf4-9uin-ZgD4T2qxhvVnnQ0dv8kMDQ6EZTEcNxosLfEZFmg/exec';
 
         // ============================================
         // PIN SECURITY
@@ -1652,7 +1663,7 @@
         // ASSET DATABASE
         // ============================================
         async function loadAssetDB() {
-            const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbyeRZaddEQIiNb1_4G4yV1Cu1-VA3uKqf_0VBkj9v4XrRrB3ie0IVToFBX1G_xzKRYglw/exec';
+            const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbylCjhUdLU-Pg5mfjl16Qsf4-9uin-ZgD4T2qxhvVnnQ0dv8kMDQ6EZTEcNxosLfEZFmg/exec';
             
             // Try to fetch fresh data from Google Sheets
             try {
@@ -1690,7 +1701,7 @@
         }
 
         async function loadTestHistory() {
-            const HISTORY_URL = 'https://script.google.com/macros/s/AKfycbyeRZaddEQIiNb1_4G4yV1Cu1-VA3uKqf_0VBkj9v4XrRrB3ie0IVToFBX1G_xzKRYglw/exec?action=history';
+            const HISTORY_URL = 'https://script.google.com/macros/s/AKfycbylCjhUdLU-Pg5mfjl16Qsf4-9uin-ZgD4T2qxhvVnnQ0dv8kMDQ6EZTEcNxosLfEZFmg/exec?action=history';
             
             try {
                 const response = await fetch(HISTORY_URL);
@@ -1817,24 +1828,29 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 
                 let due = 0;
                 let complete = 0;
-                let testDays = []; // Collect all test days to calculate average
+                let testDates = []; // Collect test dates to find earliest
                 
                 customerMeters.forEach(meter => {
                     const serial = meter['Serial Number'];
                     const assetFrequency = meter['Service Frequency'] || '';
                     const assetStatus = meter['Status'] || 'Active';
+                    const skipUntil = meter['Skip Until'];
                     
                     // Skip inactive/decommissioned/faulty meters and Call Outs
                     if (assetStatus === 'Inactive' || assetStatus === 'Decommissioned' || assetStatus === 'Faulty, Could Not Test') return;
                     if (assetFrequency === 'Call Out' || assetFrequency === 'None') return;
                     
+                    // Skip meters with active skip date
+                    if (skipUntil && new Date(skipUntil) > new Date()) return;
+                    
                     const frequency = (!assetFrequency || assetFrequency === '') 
                         ? (isSemiAnnual ? 'Semi-Annual' : 'Annual') 
                         : assetFrequency;
                     
-                    const tests = testHistory.filter(h => 
+                    // Match by serial number, but skip blank serial matching for date calculation
+                    const tests = serial ? testHistory.filter(h => 
                         String(h['Serial Number']) === String(serial)
-                    );
+                    ) : [];
                     
                     // Find tests from previous year to determine typical test timing
                     const testsPrevYear = tests.filter(t => {
@@ -1842,13 +1858,10 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                         return testDate.getFullYear() === previousYear;
                     });
                     
-                    // Collect day-of-year for each test (for averaging)
+                    // Collect test dates for finding earliest
                     testsPrevYear.forEach(t => {
                         const testDate = new Date(t['Date']);
-                        const startOfYear = new Date(testDate.getFullYear(), 0, 0);
-                        const diff = testDate - startOfYear;
-                        const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
-                        testDays.push(dayOfYear);
+                        testDates.push(testDate);
                     });
                     
                     const testsThisYear = tests.filter(t => {
@@ -1883,28 +1896,36 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 const total = due + complete;
                 const progress = total > 0 ? Math.round((complete / total) * 100) : 0;
                 
-                // Calculate average test date
-                let avgMonth = 11; // Default to December
-                let avgDay = 15;
-                if (testDays.length > 0) {
-                    const avgDayOfYear = Math.round(testDays.reduce((a, b) => a + b, 0) / testDays.length);
-                    // Convert day of year back to month/day
-                    const tempDate = new Date(currentYear, 0, avgDayOfYear);
-                    avgMonth = tempDate.getMonth();
-                    avgDay = tempDate.getDate();
+                // Find earliest test date from previous year
+                let typicalMonth = 11; // Default to December
+                let typicalDay = 1;
+                if (testDates.length > 0) {
+                    testDates.sort((a, b) => a - b); // Sort ascending
+                    const earliestDate = testDates[0];
+                    typicalMonth = earliestDate.getMonth();
+                    typicalDay = earliestDate.getDate();
                 }
                 
                 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                const typicalDate = testDays.length > 0 ? `${monthNames[avgMonth]} ${avgDay}` : null;
+                const typicalDate = testDates.length > 0 ? `${monthNames[typicalMonth]} ${typicalDay}` : null;
                 
-                return { customer, due, complete, total, progress, isSemiAnnual, avgMonth, avgDay, typicalDate };
+                return { customer, due, complete, total, progress, isSemiAnnual, typicalMonth, typicalDay, typicalDate };
             }).filter(c => c.total > 0); // Only show customers with trackable meters
             
-            // Sort by average test date
+            // Sort: incomplete first (by date), then complete (by date)
             allCustomerStats.sort((a, b) => {
-                const dayA = (a.avgMonth * 31) + a.avgDay;
-                const dayB = (b.avgMonth * 31) + b.avgDay;
-                return dayA - dayB;
+                // First, separate incomplete from complete
+                const aComplete = a.progress === 100;
+                const bComplete = b.progress === 100;
+                
+                if (!aComplete && bComplete) return -1; // a incomplete, b complete -> a first
+                if (aComplete && !bComplete) return 1;  // a complete, b incomplete -> b first
+                
+                // Both same completion status - sort by date
+                if (a.typicalMonth !== b.typicalMonth) {
+                    return a.typicalMonth - b.typicalMonth;
+                }
+                return (a.typicalDay || 1) - (b.typicalDay || 1);
             });
             
             renderTrackerDashboard();
@@ -1942,12 +1963,12 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             }
             
             customers.forEach(c => {
-                customersByMonth[c.avgMonth].push(c);
+                customersByMonth[c.typicalMonth].push(c);
             });
             
             // Sort customers within each month by day
             for (let i = 0; i < 12; i++) {
-                customersByMonth[i].sort((a, b) => a.avgDay - b.avgDay);
+                // customersByMonth already sorted by customer name within each month
             }
             
             let html = '';
@@ -2052,6 +2073,23 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             document.getElementById('trackerSearch').style.display = 'none';
             document.getElementById('trackerDetail').style.display = 'block';
             showCustomerMeters(customer);
+        }
+        
+        async function refreshTrackerData() {
+            showLoading('Refreshing data...');
+            try {
+                // Reload test history from server
+                await loadTestHistory();
+                // Reload asset DB
+                await loadAssetDB();
+                // Reinitialize tracker
+                initTracker();
+                hideLoading();
+                showToast('Data refreshed!', 'success');
+            } catch (error) {
+                hideLoading();
+                showToast('Error refreshing data', 'error');
+            }
         }
         
         function showCustomerMeters(customer) {
@@ -2247,6 +2285,8 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             const meter = assetDB.find(a => String(a['Serial Number']) === String(serialNumber));
             const currentStatus = meter ? (meter['Status'] || 'Active') : 'Active';
             const currentFrequency = meter ? (meter['Service Frequency'] || 'Annual') : 'Annual';
+            const skipUntil = meter ? (meter['Skip Until'] || '') : '';
+            const isSkipped = skipUntil && new Date(skipUntil) > new Date();
             
             const modalHTML = `
                 <div id="meterOptionsModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;">
@@ -2254,6 +2294,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                         <div style="background: var(--navy); color: white; padding: 16px;">
                             <h3 style="margin: 0; font-size: 14px;">${serialNumber}</h3>
                             <p style="margin: 4px 0 0; font-size: 12px; opacity: 0.8;">${location}</p>
+                            ${isSkipped ? `<p style="margin: 4px 0 0; font-size: 11px; color: var(--gold);">⏭️ Skipped until ${new Date(skipUntil).toLocaleDateString()}</p>` : ''}
                         </div>
                         <div style="padding: 16px;">
                             <div style="margin-bottom: 16px;">
@@ -2281,8 +2322,9 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                                 <button onclick="document.getElementById('meterOptionsModal').remove()" style="flex: 1; padding: 12px; border: 1px solid var(--gray-300); background: white; border-radius: 8px; cursor: pointer;">Cancel</button>
                                 <button onclick="saveMeterSettings('${serialNumber.replace(/'/g, "\\'")}')" style="flex: 1; padding: 12px; background: var(--teal); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Save</button>
                             </div>
-                            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--gray-200);">
-                                <button onclick="document.getElementById('meterOptionsModal').remove(); startTestFromTracker('${serialNumber.replace(/'/g, "\\'")}')" style="width: 100%; padding: 12px; background: var(--gold); color: var(--navy); border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">📝 Start Test</button>
+                            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--gray-200); display: flex; gap: 12px;">
+                                <button onclick="document.getElementById('meterOptionsModal').remove(); startTestFromTracker('${serialNumber.replace(/'/g, "\\'")}')" style="flex: 1; padding: 12px; background: var(--gold); color: var(--navy); border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">📝 Test</button>
+                                <button onclick="skipMeterOneYear('${serialNumber.replace(/'/g, "\\'")}')" style="flex: 1; padding: 12px; background: ${isSkipped ? 'var(--gray-400)' : '#ff9800'}; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">${isSkipped ? '✓ Skipped' : '⏭️ Skip 1 Year'}</button>
                             </div>
                         </div>
                     </div>
@@ -2333,6 +2375,49 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             } catch (error) {
                 hideLoading();
                 showToast('Error saving settings', 'error');
+            }
+        }
+        
+        async function skipMeterOneYear(serialNumber) {
+            const skipUntil = new Date();
+            skipUntil.setFullYear(skipUntil.getFullYear() + 1);
+            const skipDateStr = skipUntil.toISOString().split('T')[0];
+            
+            document.getElementById('meterOptionsModal').remove();
+            showLoading('Skipping meter...');
+            
+            try {
+                const response = await fetch(ASSETDB_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'skipMeter',
+                        serialNumber: serialNumber,
+                        skipUntil: skipDateStr
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Update local assetDB
+                    const meter = assetDB.find(a => String(a['Serial Number']) === String(serialNumber));
+                    if (meter) {
+                        meter['Skip Until'] = skipDateStr;
+                    }
+                    
+                    hideLoading();
+                    showToast(`Meter skipped until ${skipUntil.toLocaleDateString()}`, 'success');
+                    
+                    // Refresh tracker view
+                    initTracker();
+                } else {
+                    hideLoading();
+                    showToast('Error: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                hideLoading();
+                showToast('Error skipping meter', 'error');
             }
         }
         
@@ -2404,7 +2489,17 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     // Calculate distance to each meter
                     const metersWithDistance = metersWithGPS.map(meter => {
                         const gps = meter['GPS Coordinates'];
-                        const [lat, lng] = gps.split(',').map(s => parseFloat(s.trim()));
+                        // Strip N/S/E/W letters and parse coordinates
+                        const parts = gps.split(',').map(s => {
+                            const cleaned = s.trim().replace(/[NSEWnsew]/g, '').trim();
+                            let val = parseFloat(cleaned);
+                            // Make longitude negative if it had W
+                            if (s.toUpperCase().includes('W') && val > 0) val = -val;
+                            // Make latitude negative if it had S
+                            if (s.toUpperCase().includes('S') && val > 0) val = -val;
+                            return val;
+                        });
+                        const [lat, lng] = parts;
                         const distance = calculateDistance(myLat, myLng, lat, lng);
                         return { ...meter, distance, lat, lng };
                     });
@@ -2652,6 +2747,9 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             }
             if (asset['Units']) {
                 document.getElementById('formUnitsOC').value = asset['Units'];
+            }
+            if (asset['GPS Coordinates']) {
+                document.getElementById('formGPS').value = asset['GPS Coordinates'];
             }
             
             showToast('Meter data loaded!', 'success');
@@ -2949,6 +3047,8 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     input.value = 'Mick Bartlett'; // Default
                 } else if (input.id === 'formServiceFrequency') {
                     input.value = 'Annual'; // Default frequency
+                } else if (input.id === 'formDate') {
+                    input.value = new Date().toISOString().split('T')[0]; // Today's date
                 } else {
                     input.value = '';
                 }
@@ -3116,9 +3216,12 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             }
             
             // Build test record
+            const formDate = document.getElementById('formDate').value;
+            const timestamp = formDate ? new Date(formDate + 'T12:00:00').toISOString() : new Date().toISOString();
+            
             const testRecord = {
                 id: Date.now().toString(),
-                timestamp: new Date().toISOString(),
+                timestamp: timestamp,
                 serviceType: selectedServiceType,
                 isStartup: isStartup,
                 serviceFrequency: document.getElementById('formServiceFrequency').value,
@@ -3134,6 +3237,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 calibration: document.getElementById('formCalibration').value.trim(),
                 programming: document.getElementById('formProgramming').value.trim(),
                 notes: document.getElementById('formNotes').value.trim(),
+                accuracy: '', // Placeholder for accuracy column
                 techNotes: document.getElementById('formTechNotes').value.trim(),
                 testedBy: document.getElementById('formTestedBy').value.trim(),
                 photos: photos.filter(p => p !== null)
@@ -3215,6 +3319,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             // Populate form with test data
             document.getElementById('formCustomer').value = test.customer || '';
             document.getElementById('formLocation').value = test.location || '';
+            document.getElementById('formDate').value = test.timestamp ? test.timestamp.split('T')[0] : new Date().toISOString().split('T')[0];
             document.getElementById('formGPS').value = test.gpsCoordinates || '';
             document.getElementById('formSerial').value = test.serialNumber || '';
             document.getElementById('formManufacturer').value = test.manufacturer || '';
@@ -3366,7 +3471,8 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         }
 
         const CLOUD_FUNCTION_URL = 'https://generate-certificate-980517620937.us-central1.run.app';
-        const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyeRZaddEQIiNb1_4G4yV1Cu1-VA3uKqf_0VBkj9v4XrRrB3ie0IVToFBX1G_xzKRYglw/exec';
+        const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbylCjhUdLU-Pg5mfjl16Qsf4-9uin-ZgD4T2qxhvVnnQ0dv8kMDQ6EZTEcNxosLfEZFmg/exec';
+        const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbylCjhUdLU-Pg5mfjl16Qsf4-9uin-ZgD4T2qxhvVnnQ0dv8kMDQ6EZTEcNxosLfEZFmg/exec';
 
         async function syncPending() {
             if (pendingTests.length === 0) {
@@ -3450,12 +3556,27 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     console.error(`Error syncing to sheet: ${error}`);
                 }
                 
-                // 3. Update AssetDB with any new field data (if serial exists in DB)
+                // 3. Update AssetDB with any new field data (or create if not exists)
                 if (test.serialNumber) {
                     try {
-                        // Create a copy without photos
-                        const assetData = {...test};
-                        delete assetData.photos;
+                        // Create asset update data with action
+                        const assetData = {
+                            action: 'updateAsset',
+                            serialNumber: test.serialNumber,
+                            customer: test.customer,
+                            location: test.location,
+                            serviceType: test.serviceType,
+                            serviceFrequency: test.serviceFrequency,
+                            manufacturer: test.manufacturer,
+                            pipeMaterial: test.pipeMaterial,
+                            pipeSize: test.pipeSize,
+                            deviceType: test.deviceType,
+                            range: test.range,
+                            units: test.units,
+                            method: test.method,
+                            waterType: test.waterType,
+                            gpsCoordinates: test.gpsCoordinates
+                        };
                         
                         const updateIframe = document.createElement('iframe');
                         updateIframe.name = 'assetFrame' + i;
