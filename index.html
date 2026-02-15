@@ -1137,12 +1137,23 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Units</label>
+                    <label class="form-label">Flow Units</label>
                     <select class="form-select" id="formUnitsOC">
                         <option value="">Select...</option>
                         <option value="MGD">MGD</option>
                         <option value="GPM">GPM</option>
                         <option value="CFS">CFS</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Level Units</label>
+                    <select class="form-select" id="formLevelUnits">
+                        <option value="">Select...</option>
+                        <option value="Inches">Inches</option>
+                        <option value="Feet">Feet</option>
+                        <option value="mm">mm</option>
+                        <option value="cm">cm</option>
                     </select>
                 </div>
 
@@ -1157,22 +1168,22 @@
 
                 <div class="form-group before-field">
                     <label class="form-label">Level in Channel (Before)</label>
-                    <input type="number" step="0.01" class="form-input" id="formLevelChannelBefore" placeholder="Inches">
+                    <input type="number" step="0.01" class="form-input" id="formLevelChannelBefore" placeholder="Level">
                 </div>
 
                 <div class="form-group before-field">
                     <label class="form-label">Level on Meter (Before)</label>
-                    <input type="number" step="0.01" class="form-input" id="formLevelMeterBefore" placeholder="Inches">
+                    <input type="number" step="0.01" class="form-input" id="formLevelMeterBefore" placeholder="Level">
                 </div>
 
                 <div class="form-group after-field">
                     <label class="form-label">Level in Channel (After)</label>
-                    <input type="number" step="0.01" class="form-input" id="formLevelChannelAfter" placeholder="Inches">
+                    <input type="number" step="0.01" class="form-input" id="formLevelChannelAfter" placeholder="Level">
                 </div>
 
                 <div class="form-group after-field">
                     <label class="form-label">Level on Meter (After)</label>
-                    <input type="number" step="0.01" class="form-input" id="formLevelMeterAfter" placeholder="Inches">
+                    <input type="number" step="0.01" class="form-input" id="formLevelMeterAfter" placeholder="Level">
                 </div>
             </div>
 
@@ -3283,6 +3294,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     testRecord.deviceType = document.getElementById('formDeviceType').value;
                     testRecord.range = document.getElementById('formRange').value;
                     testRecord.units = document.getElementById('formUnitsOC').value;
+                    testRecord.levelUnits = document.getElementById('formLevelUnits').value;
                     testRecord.method = document.getElementById('formMethodOC').value;
                     testRecord.levelChannelBefore = document.getElementById('formLevelChannelBefore').value;
                     testRecord.levelMeterBefore = document.getElementById('formLevelMeterBefore').value;
@@ -3384,6 +3396,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     document.getElementById('formDeviceType').value = test.deviceType || '';
                     document.getElementById('formRange').value = test.range || '';
                     document.getElementById('formUnitsOC').value = test.units || '';
+                    document.getElementById('formLevelUnits').value = test.levelUnits || '';
                     document.getElementById('formMethodOC').value = test.method || '';
                     document.getElementById('formLevelChannelBefore').value = test.levelChannelBefore || '';
                     document.getElementById('formLevelMeterBefore').value = test.levelMeterBefore || '';
