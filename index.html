@@ -1299,17 +1299,17 @@
             <div class="form-section">
                 <div class="form-section-title">📷 Photos</div>
                 <div class="photo-grid">
-                    <div class="photo-slot" onclick="capturePhoto(0)">
+                    <div class="photo-slot" onclick="showPhotoOptions(0)">
                         <span class="add-icon">+</span>
                     </div>
-                    <div class="photo-slot" onclick="capturePhoto(1)">
+                    <div class="photo-slot" onclick="showPhotoOptions(1)">
                         <span class="add-icon">+</span>
                     </div>
-                    <div class="photo-slot" onclick="capturePhoto(2)">
+                    <div class="photo-slot" onclick="showPhotoOptions(2)">
                         <span class="add-icon">+</span>
                     </div>
                 </div>
-                <p class="form-hint">Tap to capture photos of the installation</p>
+                <p class="form-hint">Tap to capture or upload photos</p>
             </div>
 
             <div class="bottom-spacer"></div>
@@ -1329,6 +1329,19 @@
             <div style="margin-top: 24px;">
                 <button class="btn btn-gold btn-block" onclick="syncPending()" id="syncBtn">
                     ↑ Sync All to Cloud
+                </button>
+            </div>
+            
+            <div id="failedCertsSection" style="margin-top: 16px; display: none;">
+                <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                    <div style="font-weight: 600; color: #856404;">⚠️ Failed Uploads</div>
+                    <div style="font-size: 13px; color: #856404;" id="failedCertsCount">0 certificates failed to upload to Dropbox</div>
+                </div>
+                <button class="btn btn-block" style="background: var(--teal); color: white;" onclick="retryFailedCerts()">
+                    🔄 Retry Failed Uploads
+                </button>
+                <button class="btn btn-block" style="background: #dc3545; color: white; margin-top: 8px;" onclick="clearFailedCerts()">
+                    🗑️ Clear Failed
                 </button>
             </div>
         </section>
@@ -1430,7 +1443,8 @@
     <div class="toast" id="toast"></div>
 
     <!-- Hidden inputs -->
-    <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
+    <input type="file" id="photoInput" accept="image/*" style="display:none">
+    <input type="file" id="photoInputCamera" accept="image/*" capture="environment" style="display:none">
     <canvas id="scanCanvas" style="display:none"></canvas>
 
     <script>
@@ -1689,6 +1703,7 @@
             
             // Setup photo input handler
             document.getElementById('photoInput').addEventListener('change', handlePhotoCapture);
+            document.getElementById('photoInputCamera').addEventListener('change', handlePhotoCapture);
         });
 
         // ============================================
@@ -2822,6 +2837,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             // Update pending list when showing pending screen
             if (screenId === 'pendingScreen') {
                 updatePendingList();
+                updateFailedCertsUI();
             }
             
             // Update pending count
@@ -3157,6 +3173,39 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         // ============================================
         // PHOTO CAPTURE
         // ============================================
+        function showPhotoOptions(index) {
+            currentPhotoIndex = index;
+            // Show action sheet style dialog
+            const dialog = document.createElement('div');
+            dialog.id = 'photoOptionsDialog';
+            dialog.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;justify-content:center;z-index:9999;';
+            dialog.innerHTML = `
+                <div style="background:white;width:100%;max-width:400px;border-radius:16px 16px 0 0;padding:16px;padding-bottom:32px;">
+                    <div style="text-align:center;margin-bottom:16px;font-weight:600;color:#333;">Add Photo</div>
+                    <button onclick="takePhoto()" style="width:100%;padding:14px;margin-bottom:8px;background:var(--gold);border:none;border-radius:8px;font-size:16px;font-weight:500;cursor:pointer;">📷 Take Photo</button>
+                    <button onclick="chooseFromGallery()" style="width:100%;padding:14px;margin-bottom:8px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:16px;font-weight:500;cursor:pointer;">🖼️ Choose from Gallery</button>
+                    <button onclick="closePhotoDialog()" style="width:100%;padding:14px;background:#eee;border:none;border-radius:8px;font-size:16px;cursor:pointer;">Cancel</button>
+                </div>
+            `;
+            dialog.onclick = (e) => { if (e.target === dialog) closePhotoDialog(); };
+            document.body.appendChild(dialog);
+        }
+
+        function takePhoto() {
+            closePhotoDialog();
+            document.getElementById('photoInputCamera').click();
+        }
+
+        function chooseFromGallery() {
+            closePhotoDialog();
+            document.getElementById('photoInput').click();
+        }
+
+        function closePhotoDialog() {
+            const dialog = document.getElementById('photoOptionsDialog');
+            if (dialog) dialog.remove();
+        }
+
         function capturePhoto(index) {
             currentPhotoIndex = index;
             document.getElementById('photoInput').click();
@@ -3509,7 +3558,87 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             }
         }
 
-        const CLOUD_FUNCTION_URL = 'https://generate-certificate-980517620937.us-central1.run.app';
+        // Failed certificate management - stores tests that failed to upload to Dropbox
+        let failedCerts = JSON.parse(localStorage.getItem('pcms_failed_certs') || '[]');
+
+        function saveFailedCert(test, errorMsg) {
+            const failedCert = {
+                ...test,
+                failedAt: new Date().toISOString(),
+                errorMessage: errorMsg
+            };
+            failedCerts.push(failedCert);
+            localStorage.setItem('pcms_failed_certs', JSON.stringify(failedCerts));
+            console.log('Saved failed cert for retry:', test.serialNumber);
+        }
+
+        function getFailedCerts() {
+            return failedCerts;
+        }
+
+        async function retryFailedCerts() {
+            if (failedCerts.length === 0) {
+                showToast('No failed certificates to retry', 'info');
+                return;
+            }
+
+            showLoading('Retrying failed certificates...');
+            let successCount = 0;
+            const stillFailed = [];
+
+            for (const cert of failedCerts) {
+                try {
+                    const response = await fetch(CLOUD_FUNCTION_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(cert)
+                    });
+                    const result = await response.json();
+
+                    if (response.ok && result.success) {
+                        successCount++;
+                        console.log(`Retry success: ${result.dropbox_path}`);
+                    } else {
+                        stillFailed.push(cert);
+                    }
+                } catch (error) {
+                    stillFailed.push(cert);
+                }
+            }
+
+            failedCerts = stillFailed;
+            localStorage.setItem('pcms_failed_certs', JSON.stringify(failedCerts));
+            hideLoading();
+
+            if (successCount > 0) {
+                showToast(`${successCount} certificate(s) uploaded successfully!`, 'success');
+            }
+            if (stillFailed.length > 0) {
+                showToast(`${stillFailed.length} still failed - try again later`, 'error');
+            }
+        }
+
+        function clearFailedCerts() {
+            if (confirm(`Clear ${failedCerts.length} failed certificate(s)?`)) {
+                failedCerts = [];
+                localStorage.setItem('pcms_failed_certs', JSON.stringify(failedCerts));
+                showToast('Failed certificates cleared', 'info');
+                updateFailedCertsUI();
+            }
+        }
+
+        function updateFailedCertsUI() {
+            const section = document.getElementById('failedCertsSection');
+            const countEl = document.getElementById('failedCertsCount');
+            if (failedCerts.length > 0) {
+                section.style.display = 'block';
+                countEl.textContent = `${failedCerts.length} certificate(s) failed to upload to Dropbox`;
+            } else {
+                section.style.display = 'none';
+            }
+        }
+
+        const CLOUD_FUNCTION_URL = 'https://generate-certificate-test2-980517620937.us-central1.run.app';
         const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbylCjhUdLU-Pg5mfjl16Qsf4-9uin-ZgD4T2qxhvVnnQ0dv8kMDQ6EZTEcNxosLfEZFmg/exec';
         const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbylCjhUdLU-Pg5mfjl16Qsf4-9uin-ZgD4T2qxhvVnnQ0dv8kMDQ6EZTEcNxosLfEZFmg/exec';
 
@@ -3552,9 +3681,13 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                         console.log(`Certificate created: ${pdfResult.dropbox_path}`);
                     } else {
                         console.error(`Failed to create certificate: ${pdfResult.error}`);
+                        // Save to failed certs for retry later
+                        saveFailedCert(test, pdfResult.error || 'Unknown error');
                     }
                 } catch (error) {
                     console.error(`Error creating PDF: ${error}`);
+                    // Save to failed certs for retry later
+                    saveFailedCert(test, error.message || 'Network error');
                 }
                 
                 // 2. Sync to Google Sheets using hidden iframe form (without photos - too large)
