@@ -8,6 +8,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>PCMS Mobile</title>
     <link rel="manifest" href="manifest.json">
+    
+    <!-- Leaflet Map -->
+    <!-- Leaflet Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="apple-touch-icon" href="assets/logo.png">
     
     <!-- OCR powered by OCR.space API -->
@@ -757,6 +762,46 @@
             margin: -8px;
             margin-right: 8px;
         }
+
+        /* Map styles */
+        .map-chip {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid var(--gray-200);
+            background: white;
+            font-size: 13px;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+        .map-chip.active {
+            background: var(--navy);
+            color: white;
+            border-color: var(--navy);
+        }
+        .map-marker {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .map-marker.green { background: #4ade80; }
+        .map-marker.yellow { background: #fbbf24; }
+        .map-marker.red { background: #ef4444; }
+        .map-popup h4 { margin: 0 0 4px 0; font-size: 14px; }
+        .map-popup p { margin: 0 0 4px 0; font-size: 12px; color: #666; }
+        .map-popup .status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .map-popup .status.tested { background: #dcfce7; color: #166534; }
+        .map-popup .status.due { background: #fef3c7; color: #92400e; }
+        .map-popup .status.overdue { background: #fee2e2; color: #991b1b; }
+        .map-popup .btn-row { display: flex; gap: 6px; margin-top: 8px; }
+        .map-popup button { flex: 1; padding: 8px; border: none; border-radius: 6px; font-size: 11px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -882,6 +927,11 @@
                     <div class="action-icon">📊</div>
                     <div class="action-title">Tracker</div>
                     <div class="action-subtitle">Meters due for testing</div>
+                </div>
+                <div class="action-card" onclick="showScreen('mapScreen')">
+                    <div class="action-icon">🗺️</div>
+                    <div class="action-title">Site Map</div>
+                    <div class="action-subtitle">View sites & plan routes</div>
                 </div>
             </div>
 
@@ -1381,6 +1431,59 @@
             </div>
         </section>
     </main>
+
+        <section class="screen" id="mapScreen">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div class="section-title" style="margin: 0;">Site Map</div>
+                <select id="mapCustomerFilter" onchange="filterMapByCustomer()" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--gray-300); font-size: 13px;">
+                    <option value="">All Customers</option>
+                </select>
+            </div>
+            
+            <div class="map-filter-chips" style="display: flex; gap: 8px; overflow-x: auto; margin-bottom: 12px; padding-bottom: 4px;">
+                <button class="map-chip active" onclick="filterMapStatus('all', this)">All</button>
+                <button class="map-chip" onclick="filterMapStatus('tested', this)">✓ Tested</button>
+                <button class="map-chip" onclick="filterMapStatus('due', this)">⚠ Due</button>
+                <button class="map-chip" onclick="filterMapStatus('overdue', this)">🚨 Overdue</button>
+            </div>
+            
+            <div id="siteMap" style="height: calc(100vh - 380px); border-radius: 12px; overflow: hidden; border: 1px solid var(--gray-200);"></div>
+            
+            <div class="map-legend" style="display: flex; gap: 16px; justify-content: center; margin: 12px 0; font-size: 12px;">
+                <span><span style="display:inline-block;width:12px;height:12px;background:#4ade80;border-radius:50%;margin-right:4px;"></span>Tested</span>
+                <span><span style="display:inline-block;width:12px;height:12px;background:#fbbf24;border-radius:50%;margin-right:4px;"></span>Due</span>
+                <span><span style="display:inline-block;width:12px;height:12px;background:#ef4444;border-radius:50%;margin-right:4px;"></span>Overdue</span>
+            </div>
+            
+            <div class="map-route-settings" style="background: var(--gray-50); border-radius: 12px; padding: 12px; margin-bottom: 12px;">
+                <div style="font-weight: 600; font-size: 13px; margin-bottom: 10px;">🗺️ Route Planning</div>
+                <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+                    <div style="width: 28px; height: 28px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">A</div>
+                    <input type="text" id="routeStart" value="📍 Current Location" readonly style="flex: 1; padding: 10px; border: 1px solid var(--gray-200); border-radius: 8px; font-size: 13px;">
+                    <button onclick="setRouteStart()" style="padding: 10px; border: 1px solid var(--gray-200); border-radius: 8px; background: white;">📍</button>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <div style="width: 28px; height: 28px; background: #8b5cf6; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">B</div>
+                    <input type="text" id="routeEnd" value="🏠 Home" readonly style="flex: 1; padding: 10px; border: 1px solid var(--gray-200); border-radius: 8px; font-size: 13px;">
+                    <button onclick="setRouteEnd()" style="padding: 10px; border: 1px solid var(--gray-200); border-radius: 8px; background: white;">✏️</button>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 8px;">
+                <button onclick="planMapRoute('due')" style="flex: 1; padding: 14px; background: var(--gold); color: var(--navy); border: none; border-radius: 8px; font-size: 14px; font-weight: 600;">📍 Route to Due</button>
+                <button onclick="planMapRoute('overdue')" style="flex: 1; padding: 14px; background: var(--teal); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600;">🚨 Route to Overdue</button>
+            </div>
+            
+            <div id="routeInfoBanner" style="display: none; background: var(--teal); color: white; padding: 12px; border-radius: 8px; margin-top: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-weight: 600;" id="routeStopsCount">4 stops planned</div>
+                        <div style="font-size: 12px; opacity: 0.9;" id="routeDistance">North → South route</div>
+                    </div>
+                    <button onclick="openRouteInGoogleMaps()" style="background: white; color: var(--teal); border: none; padding: 10px 16px; border-radius: 6px; font-weight: 600;">Open in Maps</button>
+                </div>
+            </div>
+        </section>
 
     <!-- Bottom Nav for Form -->
     <div class="bottom-nav" id="formNav" style="display: none;">
@@ -2813,6 +2916,14 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 stopCamera();
             }
             
+            // Initialize map when showing map screen
+            if (screenId === 'mapScreen') {
+                setTimeout(() => {
+                    initSiteMap();
+                    if (siteMap) siteMap.invalidateSize();
+                }, 100);
+            }
+
             // Reset tracker to dashboard view when entering
             if (screenId === 'trackerScreen') {
                 showTrackerDashboard();
@@ -2831,7 +2942,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         document.getElementById('backBtn').addEventListener('click', () => {
             if (currentScreen === 'scannerScreen' || currentScreen === 'formScreen') {
                 showScreen('homeScreen');
-            } else if (currentScreen === 'pendingScreen' || currentScreen === 'historyScreen' || currentScreen === 'trackerScreen') {
+            } else if (currentScreen === 'pendingScreen' || currentScreen === 'historyScreen' || currentScreen === 'trackerScreen' || currentScreen === 'mapScreen') {
                 showScreen('homeScreen');
             }
         });
@@ -3708,6 +3819,282 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             setTimeout(() => {
                 toast.classList.remove('visible');
             }, 3000);
+        }
+
+
+        // ============================================
+        // SITE MAP
+        // ============================================
+        function initSiteMap() {
+            if (siteMap) return; // Already initialized
+            
+            // Initialize map centered on San Antonio area
+            siteMap = L.map('siteMap').setView([29.65, -98.35], 10);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(siteMap);
+            
+            // Load sites from AssetDB
+            loadMapSites();
+        }
+
+        async function loadMapSites() {
+            // Use the already-loaded assetDB
+            if (!assetDB || assetDB.length === 0) {
+                console.log('AssetDB not loaded yet, waiting...');
+                // Try to load it
+                await loadAssetDB();
+            }
+            
+            if (assetDB && assetDB.length > 0) {
+                processMapData(assetDB);
+            } else {
+                console.log('No AssetDB data available for map');
+            }
+        }
+        
+        function processMapData(data) {
+            if (!data || !Array.isArray(data)) {
+                console.log('No valid map data received');
+                return;
+            }
+            
+            mapSites = data.filter(site => {
+                const gps = site['GPS Coordinates'] || site.gpsCoordinates || '';
+                return gps && gps.toString().includes(',');
+            }).map(site => {
+                const gps = (site['GPS Coordinates'] || site.gpsCoordinates || '').toString().split(',');
+                return {
+                    name: site['Location'] || site.location || 'Unknown',
+                    customer: site['Customer'] || site.customer || '',
+                    serial: site['Serial Number'] || site.serialNumber || '',
+                    lat: parseFloat(gps[0]?.trim()),
+                    lng: parseFloat(gps[1]?.trim()),
+                    lastTest: site['Last Test Date'] || site['Last Tested'] || '',
+                    status: getTestStatus(site),
+                    serviceType: site['Service Type'] || ''
+                };
+            }).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
+            
+            console.log('Map sites loaded:', mapSites.length);
+            
+            // Populate customer filter
+            populateMapCustomerFilter();
+            
+            // Add markers
+            updateMapMarkers();
+            
+            // Fit bounds if we have sites
+            if (mapSites.length > 0 && siteMap) {
+                const bounds = L.latLngBounds(mapSites.map(s => [s.lat, s.lng]));
+                siteMap.fitBounds(bounds, { padding: [30, 30] });
+            }
+        }
+
+        function getTestStatus(site) {
+            const lastTest = site['Last Test Date'] || '';
+            if (!lastTest) return 'overdue';
+            
+            const lastTestDate = new Date(lastTest);
+            const now = new Date();
+            const daysSinceTest = (now - lastTestDate) / (1000 * 60 * 60 * 24);
+            
+            const frequency = site['Service Frequency'] || 'Annual';
+            let daysAllowed = 365;
+            if (frequency === 'Semi-Annual') daysAllowed = 180;
+            else if (frequency === 'Quarterly') daysAllowed = 90;
+            
+            if (daysSinceTest > daysAllowed) return 'overdue';
+            if (daysSinceTest > daysAllowed - 60) return 'due';
+            return 'tested';
+        }
+
+        function populateMapCustomerFilter() {
+            const customers = [...new Set(mapSites.map(s => s.customer).filter(c => c))].sort();
+            const select = document.getElementById('mapCustomerFilter');
+            select.innerHTML = '<option value="">All Customers</option>' +
+                customers.map(c => `<option value="${c}">${c}</option>`).join('');
+        }
+
+        function filterMapByCustomer() {
+            updateMapMarkers();
+        }
+
+        function filterMapStatus(status, btn) {
+            currentMapFilter = status;
+            document.querySelectorAll('.map-chip').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            updateMapMarkers();
+        }
+
+        function updateMapMarkers() {
+            // Clear existing markers
+            mapMarkers.forEach(m => siteMap.removeLayer(m));
+            mapMarkers = [];
+            
+            const customerFilter = document.getElementById('mapCustomerFilter').value;
+            
+            mapSites.forEach(site => {
+                // Apply filters
+                if (customerFilter && site.customer !== customerFilter) return;
+                if (currentMapFilter !== 'all' && site.status !== currentMapFilter) return;
+                
+                const colorClass = site.status === 'tested' ? 'green' : site.status === 'due' ? 'yellow' : 'red';
+                const symbol = site.status === 'tested' ? '✓' : site.status === 'due' ? '!' : '⚠';
+                
+                const icon = L.divIcon({
+                    className: 'map-marker-wrapper',
+                    html: `<div class="map-marker ${colorClass}">${symbol}</div>`,
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                });
+                
+                const marker = L.marker([site.lat, site.lng], { icon }).addTo(siteMap);
+                
+                const statusClass = site.status;
+                const statusText = site.status === 'tested' ? 'Tested' : site.status === 'due' ? 'Due Soon' : 'Overdue';
+                
+                marker.bindPopup(`
+                    <div class="map-popup">
+                        <h4>${site.name}</h4>
+                        <p>👤 ${site.customer}</p>
+                        <p>🔢 ${site.serial}</p>
+                        <p>📅 Last: ${site.lastTest || 'Never'}</p>
+                        <span class="status ${statusClass}">${statusText}</span>
+                        <div class="btn-row">
+                            <button class="btn-test" onclick="startTestFromMap('${site.serial}')">Start Test</button>
+                            <button class="btn-nav" onclick="navigateToSite(${site.lat}, ${site.lng})">📍 Navigate</button>
+                        </div>
+                    </div>
+                `);
+                
+                marker.siteData = site;
+                mapMarkers.push(marker);
+            });
+        }
+
+        function startTestFromMap(serial) {
+            siteMap.closePopup();
+            
+            // Find the asset in assetDB
+            const asset = assetDB.find(a => a['Serial Number'] === serial);
+            
+            if (asset) {
+                populateFromAsset(asset);
+            } else {
+                // Fallback - just open form with serial
+                showScreen('formScreen');
+                resetForm();
+                document.getElementById('formSerial').value = serial;
+            }
+        }
+
+        function navigateToSite(lat, lng) {
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
+        }
+
+        function setRouteStart() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    routeStartCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    document.getElementById('routeStart').value = '📍 Current Location';
+                    showToast('Start point set to current location', 'success');
+                }, () => {
+                    showToast('Could not get location', 'error');
+                });
+            }
+        }
+
+        function setRouteEnd() {
+            const address = prompt('Enter end address (or leave blank for home):', '');
+            if (address) {
+                document.getElementById('routeEnd').value = '🏠 ' + address;
+                // In production, would geocode this address
+            }
+        }
+
+        function planMapRoute(statusFilter) {
+            // Get sites matching filter
+            const customerFilter = document.getElementById('mapCustomerFilter').value;
+            let routeSites = mapSites.filter(s => {
+                if (customerFilter && s.customer !== customerFilter) return false;
+                if (statusFilter === 'overdue') return s.status === 'overdue';
+                if (statusFilter === 'due') return s.status === 'due' || s.status === 'overdue';
+                return true;
+            });
+            
+            if (routeSites.length === 0) {
+                showToast('No sites to route to', 'info');
+                return;
+            }
+            
+            // Sort north to south (highest lat first) so we end up closer to home (south)
+            routeSites.sort((a, b) => b.lat - a.lat);
+            
+            plannedRoute = routeSites;
+            
+            // Clear existing route
+            if (mapRouteLine) siteMap.removeLayer(mapRouteLine);
+            
+            // Build route points
+            const startPoint = routeStartCoords || { lat: routeSites[0].lat + 0.05, lng: routeSites[0].lng };
+            const routePoints = [
+                [startPoint.lat, startPoint.lng],
+                ...routeSites.map(s => [s.lat, s.lng]),
+                [routeEndCoords.lat, routeEndCoords.lng]
+            ];
+            
+            // Draw route line
+            mapRouteLine = L.polyline(routePoints, {
+                color: '#2a9d8f',
+                weight: 4,
+                opacity: 0.7,
+                dashArray: '10, 10'
+            }).addTo(siteMap);
+            
+            // Update markers with stop numbers
+            updateMapMarkers();
+            
+            // Add numbered markers for route stops
+            routeSites.forEach((site, i) => {
+                const existingMarker = mapMarkers.find(m => m.siteData?.serial === site.serial);
+                if (existingMarker) {
+                    const colorClass = site.status === 'tested' ? 'green' : site.status === 'due' ? 'yellow' : 'red';
+                    const newIcon = L.divIcon({
+                        className: 'map-marker-wrapper',
+                        html: `<div class="map-marker ${colorClass}" style="position:relative;">${i + 1}<div style="position:absolute;top:-8px;right:-8px;background:var(--navy);color:white;width:18px;height:18px;border-radius:50%;font-size:10px;display:flex;align-items:center;justify-content:center;border:2px solid white;"></div></div>`,
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 15]
+                    });
+                    existingMarker.setIcon(newIcon);
+                }
+            });
+            
+            // Fit map to route
+            siteMap.fitBounds(mapRouteLine.getBounds(), { padding: [50, 50] });
+            
+            // Show route info
+            document.getElementById('routeInfoBanner').style.display = 'block';
+            document.getElementById('routeStopsCount').textContent = `${routeSites.length} stops planned`;
+            document.getElementById('routeDistance').textContent = 'Route: North → South (ending near home)';
+        }
+
+        function openRouteInGoogleMaps() {
+            if (plannedRoute.length === 0) {
+                showToast('No route planned', 'error');
+                return;
+            }
+            
+            const start = routeStartCoords ? `${routeStartCoords.lat},${routeStartCoords.lng}` : '';
+            const end = `${routeEndCoords.lat},${routeEndCoords.lng}`;
+            const waypoints = plannedRoute.map(s => `${s.lat},${s.lng}`).join('|');
+            
+            let url = `https://www.google.com/maps/dir/?api=1&destination=${end}&travelmode=driving`;
+            if (start) url += `&origin=${start}`;
+            if (waypoints) url += `&waypoints=${waypoints}`;
+            
+            window.open(url, '_blank');
         }
 
         // SW registration handled in DOMContentLoaded above
