@@ -3751,40 +3751,43 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     saveFailedCert(test, e.message || 'Network error');
                 }
 
-                // 2. Sync to Google Sheets (real fetch, not iframe)
+                // 2. Sync to Google Sheets
                 try {
                     const sheetData = { ...test, action: 'addFieldData' };
                     delete sheetData.photos;
+                    const formData = new FormData();
+                    formData.append('data', JSON.stringify(sheetData));
                     await fetch(SHEETS_URL, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(sheetData)
+                        body: formData
                     });
                 } catch (e) { /* best-effort */ }
 
                 // 3. Update AssetDB (best-effort)
                 if (test.serialNumber) {
                     try {
+                        const assetPayload = {
+                            action: 'updateAsset',
+                            serialNumber: test.serialNumber,
+                            customer: test.customer,
+                            location: test.location,
+                            serviceType: test.serviceType,
+                            serviceFrequency: test.serviceFrequency,
+                            manufacturer: test.manufacturer,
+                            pipeMaterial: test.pipeMaterial,
+                            pipeSize: test.pipeSize,
+                            deviceType: test.deviceType,
+                            range: test.range,
+                            units: test.units,
+                            method: test.method,
+                            waterType: test.waterType,
+                            gpsCoordinates: test.gpsCoordinates
+                        };
+                        const assetForm = new FormData();
+                        assetForm.append('data', JSON.stringify(assetPayload));
                         await fetch(SHEETS_URL, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                action: 'updateAsset',
-                                serialNumber: test.serialNumber,
-                                customer: test.customer,
-                                location: test.location,
-                                serviceType: test.serviceType,
-                                serviceFrequency: test.serviceFrequency,
-                                manufacturer: test.manufacturer,
-                                pipeMaterial: test.pipeMaterial,
-                                pipeSize: test.pipeSize,
-                                deviceType: test.deviceType,
-                                range: test.range,
-                                units: test.units,
-                                method: test.method,
-                                waterType: test.waterType,
-                                gpsCoordinates: test.gpsCoordinates
-                            })
+                            body: assetForm
                         });
                     } catch (e) { /* best-effort */ }
                 }
