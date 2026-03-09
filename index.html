@@ -3881,17 +3881,38 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 return;
             }
             
+            // Helper to parse GPS string in either decimal or degree-symbol format
+            function parseGPS(raw) {
+                if (!raw) return null;
+                const s = raw.toString().trim();
+                if (!s.includes(',')) return null;
+                const parts = s.split(',');
+                if (parts.length < 2) return null;
+                // Strip degree symbols and direction letters: "30.154° N" → 30.154, "97.858° W" → -97.858
+                function parsePart(p, negLetter) {
+                    const cleaned = p.replace(/[°'"]/g, '').trim();
+                    const hasNeg = negLetter && new RegExp(negLetter, 'i').test(cleaned);
+                    const val = parseFloat(cleaned.replace(/[NSEW]/gi, '').trim());
+                    return hasNeg ? -Math.abs(val) : val;
+                }
+                const lat = parsePart(parts[0], 'S');
+                const lng = parsePart(parts[1], 'W');
+                if (isNaN(lat) || isNaN(lng)) return null;
+                return { lat, lng };
+            }
+
             mapSites = data.filter(site => {
                 const gps = site['GPS Coordinates'] || site.gpsCoordinates || '';
                 return gps && gps.toString().includes(',');
             }).map(site => {
-                const gps = (site['GPS Coordinates'] || site.gpsCoordinates || '').toString().split(',');
+                const raw = (site['GPS Coordinates'] || site.gpsCoordinates || '').toString();
+                const parsed = parseGPS(raw);
                 return {
                     name: site['Facility/Location'] || site['Location'] || site.location || 'Unknown',
                     customer: site['Customer'] || site.customer || '',
                     serial: site['Serial Number'] || site.serialNumber || '',
-                    lat: parseFloat(gps[0]?.trim()),
-                    lng: parseFloat(gps[1]?.trim()),
+                    lat: parsed ? parsed.lat : NaN,
+                    lng: parsed ? parsed.lng : NaN,
                     lastTest: (() => {
                         const serial = String(site['Serial Number'] || '').trim();
                         const matches = testHistory.filter(h => String(h['Serial Number'] || '').trim() === serial);
