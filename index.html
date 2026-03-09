@@ -3996,7 +3996,14 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                         <h4>${site.name}</h4>
                         <p>👤 ${site.customer}</p>
                         <p>🔢 ${site.serial}</p>
-                        <p>📅 Last: ${site.lastTest || 'Never'}</p>
+                        <p>📅 Last: ${(() => {
+                            const s = String(site.serial || '').trim();
+                            const h = testHistory.filter(r => String(r['Serial Number']||'').trim() === s);
+                            if (!h.length) return 'Never';
+                            h.sort((a,b) => new Date(b['Date']||0) - new Date(a['Date']||0));
+                            const d = new Date(h[0]['Date']);
+                            return isNaN(d) ? 'Never' : d.toLocaleDateString();
+                        })()}</p>
                         <span class="status ${statusClass}">${statusText}</span>
                         <div class="btn-row">
                             <button class="btn-test" onclick="startTestFromMap('${site.serial}')">Start Test</button>
