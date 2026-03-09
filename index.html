@@ -1443,7 +1443,7 @@
             <div class="map-filter-chips" style="display: flex; gap: 8px; overflow-x: auto; margin-bottom: 12px; padding-bottom: 4px;">
                 <button class="map-chip active" onclick="filterMapStatus('all', this)">All</button>
                 <button class="map-chip" onclick="filterMapStatus('tested', this)">✓ Tested</button>
-                <button class="map-chip" onclick="filterMapStatus('due', this)">⚠ Due</button>
+                <button class="map-chip" onclick="filterMapStatus('due', this)" id="chipDue">⚠ Due</button>
                 <button class="map-chip" onclick="filterMapStatus('overdue', this)">🚨 Overdue</button>
             </div>
             
@@ -3989,21 +3989,34 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 const marker = L.marker([site.lat, site.lng], { icon }).addTo(siteMap);
                 
                 const statusClass = site.status;
-                const statusText = site.status === 'tested' ? 'Tested' : site.status === 'due' ? 'Due Soon' : 'Overdue';
-                
+
+                // Calculate due date for this site
+                const _serial = String(site.serial || '').trim();
+                const _hist = testHistory.filter(r => String(r['Serial Number']||'').trim() === _serial);
+                _hist.sort((a,b) => new Date(b['Date']||0) - new Date(a['Date']||0));
+                const _lastDate = _hist.length ? new Date(_hist[0]['Date']) : null;
+                const _lastStr = _lastDate && !isNaN(_lastDate) ? _lastDate.toLocaleDateString() : 'Never';
+
+                const _customer = site.customer || '';
+                const _semiAnnual = ['New Braunfels Utilities','MidSouth','Guadalupe-Blanco River Authority','GBRA'].some(c => _customer.includes(c));
+                const _daysAllowed = _semiAnnual ? 180 : 365;
+                const _dueDate = _lastDate && !isNaN(_lastDate)
+                    ? new Date(_lastDate.getTime() + _daysAllowed * 86400000)
+                    : null;
+                const _dueDateStr = _dueDate ? _dueDate.toLocaleDateString() : 'Unknown';
+
+                const statusText = site.status === 'tested' ? 'Tested'
+                    : site.status === 'due' ? `Due ${_dueDateStr}`
+                    : site.status === 'overdue' && _dueDate ? `Overdue since ${_dueDateStr}`
+                    : 'Overdue';
+
                 marker.bindPopup(`
                     <div class="map-popup">
                         <h4>${site.name}</h4>
                         <p>👤 ${site.customer}</p>
                         <p>🔢 ${site.serial}</p>
-                        <p>📅 Last: ${(() => {
-                            const s = String(site.serial || '').trim();
-                            const h = testHistory.filter(r => String(r['Serial Number']||'').trim() === s);
-                            if (!h.length) return 'Never';
-                            h.sort((a,b) => new Date(b['Date']||0) - new Date(a['Date']||0));
-                            const d = new Date(h[0]['Date']);
-                            return isNaN(d) ? 'Never' : d.toLocaleDateString();
-                        })()}</p>
+                        <p>📅 Last: ${_lastStr}</p>
+                        ${site.status !== 'tested' ? `<p>⏰ Due: ${_dueDateStr}</p>` : ''}
                         <span class="status ${statusClass}">${statusText}</span>
                         <div class="btn-row">
                             <button class="btn-test" onclick="startTestFromMap('${site.serial}')">Start Test</button>
@@ -4014,6 +4027,37 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 
                 marker.siteData = site;
                 mapMarkers.push(marker);
+            });
+
+            // Update chip labels with counts and nearest due date
+            const allVisible = mapSites.filter(s => !customerFilter || s.customer === customerFilter);
+            const dueCount = allVisible.filter(s => s.status === 'due').length;
+            const overdueCount = allVisible.filter(s => s.status === 'overdue').length;
+            const testedCount = allVisible.filter(s => s.status === 'tested').length;
+
+            // Find nearest due date among "due" sites
+            const dueSites = allVisible.filter(s => s.status === 'due');
+            let nearestDueStr = '';
+            if (dueSites.length > 0) {
+                const dueDates = dueSites.map(s => {
+                    const ser = String(s.serial||'').trim();
+                    const h = testHistory.filter(r => String(r['Serial Number']||'').trim() === ser);
+                    h.sort((a,b) => new Date(b['Date']||0) - new Date(a['Date']||0));
+                    const last = h.length ? new Date(h[0]['Date']) : null;
+                    const isSemi = ['New Braunfels Utilities','MidSouth','Guadalupe-Blanco River Authority','GBRA'].some(c => (s.customer||'').includes(c));
+                    return last && !isNaN(last) ? new Date(last.getTime() + (isSemi ? 180 : 365) * 86400000) : null;
+                }).filter(Boolean);
+                dueDates.sort((a,b) => a - b);
+                if (dueDates[0]) nearestDueStr = ' · next ' + dueDates[0].toLocaleDateString();
+            }
+
+            const chipDue = document.getElementById('chipDue');
+            if (chipDue) chipDue.textContent = `⚠ Due (${dueCount})${nearestDueStr}`;
+            const chips = document.querySelectorAll('.map-chip');
+            chips.forEach(c => {
+                if (c.textContent.startsWith('✓')) c.textContent = `✓ Tested (${testedCount})`;
+                if (c.textContent.startsWith('🚨')) c.textContent = `🚨 Overdue (${overdueCount})`;
+                if (c.textContent.startsWith('All')) c.textContent = `All (${allVisible.length})`;
             });
         }
 
