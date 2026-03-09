@@ -3858,13 +3858,16 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         }
 
         async function loadMapSites() {
-            // Use the already-loaded assetDB
+            // Use already-loaded assetDB — if empty, wait up to 5s for it
             if (!assetDB || assetDB.length === 0) {
                 console.log('AssetDB not loaded yet, waiting...');
-                // Try to load it
-                await loadAssetDB();
+                let waited = 0;
+                while ((!assetDB || assetDB.length === 0) && waited < 5000) {
+                    await new Promise(r => setTimeout(r, 200));
+                    waited += 200;
+                }
             }
-            
+
             if (assetDB && assetDB.length > 0) {
                 processMapData(assetDB);
             } else {
