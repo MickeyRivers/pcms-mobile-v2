@@ -1854,6 +1854,10 @@
                     testHistory = await response.json();
                     localStorage.setItem('testHistory', JSON.stringify(testHistory));
                     console.log(`Loaded ${testHistory.length} history records`);
+                    // Refresh map markers now that history is loaded
+                    if (siteMap && mapSites.length > 0) {
+                        processMapData(assetDB);
+                    }
                     return;
                 }
             } catch (e) {
@@ -1865,6 +1869,10 @@
             if (cached) {
                 testHistory = JSON.parse(cached);
                 console.log(`Loaded ${testHistory.length} history records from cache`);
+                // Refresh map markers if already open
+                if (siteMap && mapSites.length > 0) {
+                    processMapData(assetDB);
+                }
             }
         }
 
@@ -3904,7 +3912,10 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
 
         function getTestStatus(site) {
             const serial = site['Serial Number'] || '';
-            const frequency = site['Service Frequency'] || 'Annual';
+            const customer = site['Customer'] || '';
+            const semiAnnualCustomers = ['New Braunfels Utilities', 'MidSouth', 'Guadalupe-Blanco River Authority', 'GBRA'];
+            const isSemiAnnual = semiAnnualCustomers.some(c => customer.includes(c));
+            const frequency = isSemiAnnual ? 'Semi-Annual' : (site['Service Frequency'] || 'Annual');
 
             // Look up last test from testHistory
             const tests = serial ? testHistory.filter(h =>
