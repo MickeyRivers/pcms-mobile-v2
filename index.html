@@ -3889,7 +3889,14 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     serial: site['Serial Number'] || site.serialNumber || '',
                     lat: parseFloat(gps[0]?.trim()),
                     lng: parseFloat(gps[1]?.trim()),
-                    lastTest: site['Last Test Date'] || site['Last Tested'] || '',
+                    lastTest: (() => {
+                        const serial = String(site['Serial Number'] || '').trim();
+                        const matches = testHistory.filter(h => String(h['Serial Number'] || '').trim() === serial);
+                        if (matches.length === 0) return '';
+                        matches.sort((a, b) => new Date(b['Date'] || 0) - new Date(a['Date'] || 0));
+                        const d = new Date(matches[0]['Date']);
+                        return isNaN(d) ? '' : d.toLocaleDateString();
+                    })(),
                     status: getTestStatus(site),
                     serviceType: site['Service Type'] || ''
                 };
