@@ -1,5 +1,5 @@
 // PCMS Service Worker - Offline Cache + Background Sync
-const CACHE_NAME = 'pcms-v3';
+const CACHE_NAME = 'pcms-v4';
 const SYNC_TAG = 'pcms-sync';
 
 const CLOUD_FUNCTION_URL = 'https://generate-certificate-980517620937.us-central1.run.app';
@@ -148,10 +148,11 @@ async function syncOneTest(test) {
         delete sheetData.photos;
         sheetData.action = 'addFieldData';
 
+        const formData = new FormData();
+        formData.append('data', JSON.stringify(sheetData));
         const res = await fetch(SHEETS_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(sheetData)
+            body: formData
         });
         if (res.ok) {
             const json = await res.json();
@@ -164,10 +165,7 @@ async function syncOneTest(test) {
     // 3. Update AssetDB (best-effort, doesn't block success)
     if (test.serialNumber) {
         try {
-            await fetch(SHEETS_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            const assetPayload = {
                     action: 'updateAsset',
                     serialNumber: test.serialNumber,
                     customer: test.customer,
@@ -182,7 +180,13 @@ async function syncOneTest(test) {
                     method: test.method,
                     waterType: test.waterType,
                     gpsCoordinates: test.gpsCoordinates
-                })
+                };
+            const assetForm = new FormData();
+            assetForm.append('data', JSON.stringify(assetPayload));
+            await fetch(SHEETS_URL, {
+                method: 'POST',
+                body: assetForm
+            }
             });
         } catch (e) { /* best-effort */ }
     }
