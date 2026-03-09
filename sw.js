@@ -1,92 +1,225 @@
-const CACHE_NAME = 'pcms-mobile-v1';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/assets/logo.png',
-  '/assetdb.json',
-  'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
-  'https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap'
+// PCMS Service Worker - Offline Cache + Background Sync
+const CACHE_NAME = 'pcms-v1';
+const SYNC_TAG = 'pcms-sync';
+
+const CLOUD_FUNCTION_URL = 'https://generate-certificate-980517620937.us-central1.run.app';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbylCjhUdLU-Pg5mfjl16Qsf4-9uin-ZgD4T2qxhvVnnQ0dv8kMDQ6EZTEcNxosLfEZFmg/exec';
+
+// App shell files to cache for offline use
+const APP_SHELL = [
+    './',
+    './index.html',
+    './manifest.json'
 ];
 
-// Install event - cache assets
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Caching app assets');
-        return cache.addAll(ASSETS_TO_CACHE);
-      })
-      .catch((err) => {
-        console.log('Cache failed:', err);
-      })
-  );
-  self.skipWaiting();
+// ─── Install: cache app shell ───────────────────────────────────────────────
+self.addEventListener('install', event => {
+    event.waitUntil(
+        caches.open(CACHE_NAME).then(cache => {
+            return cache.addAll(APP_SHELL).catch(() => {
+                // Non-fatal: continue even if some assets fail
+            });
+        }).then(() => self.skipWaiting())
+    );
 });
 
-// Activate event - clean old caches
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
-      );
-    })
-  );
-  self.clients.claim();
+// ─── Activate: clean old caches ─────────────────────────────────────────────
+self.addEventListener('activate', event => {
+    event.waitUntil(
+        caches.keys().then(keys =>
+            Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+        ).then(() => self.clients.claim())
+    );
 });
 
-// Fetch event - serve from cache, fallback to network
-self.addEventListener('fetch', (event) => {
-  // Skip non-GET requests
-  if (event.request.method !== 'GET') {
-    return;
-  }
+// ─── Fetch: serve from cache, fall back to network ──────────────────────────
+self.addEventListener('fetch', event => {
+    const url = event.request.url;
 
-  event.respondWith(
-    caches.match(event.request)
-      .then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
+    // Never intercept API calls or external services
+    if (url.includes('googleapis.com') ||
+        url.includes('script.google.com') ||
+        url.includes('run.app') ||
+        url.includes('dropbox') ||
+        url.includes('ocr.space') ||
+        url.includes('fonts.g')) {
+        return;
+    }
 
-        return fetch(event.request)
-          .then((networkResponse) => {
-            // Don't cache external resources that might fail
-            if (!networkResponse || networkResponse.status !== 200) {
-              return networkResponse;
-            }
-
-            // Clone response for caching
-            const responseToCache = networkResponse.clone();
-
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-
-            return networkResponse;
-          })
-          .catch(() => {
-            // Return offline fallback for HTML requests
-            if (event.request.headers.get('accept').includes('text/html')) {
-              return caches.match('/index.html');
-            }
-          });
-      })
-  );
+    event.respondWith(
+        caches.match(event.request).then(cached => {
+            if (cached) return cached;
+            return fetch(event.request).then(response => {
+                // Cache successful GET responses for app shell
+                if (event.request.method === 'GET' && response.status === 200) {
+                    const clone = response.clone();
+                    caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+                }
+                return response;
+            }).catch(() => {
+                // Offline and not cached — return cached index.html for navigation
+                if (event.request.mode === 'navigate') {
+                    return caches.match('./index.html');
+                }
+            });
+        })
+    );
 });
 
-// Background sync for pending tests
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-tests') {
-    event.waitUntil(syncPendingTests());
-  }
+// ─── Background Sync ─────────────────────────────────────────────────────────
+self.addEventListener('sync', event => {
+    if (event.tag === SYNC_TAG) {
+        event.waitUntil(syncPendingTests());
+    }
 });
 
+// ─── Push message from page: manual sync trigger ────────────────────────────
+self.addEventListener('message', event => {
+    if (event.data && event.data.type === 'MANUAL_SYNC') {
+        syncPendingTests().then(result => {
+            // Notify all open clients of result
+            self.clients.matchAll().then(clients => {
+                clients.forEach(client => client.postMessage({
+                    type: 'SYNC_COMPLETE',
+                    result
+                }));
+            });
+        });
+    }
+});
+
+// ─── Core sync logic (runs in SW context) ────────────────────────────────────
 async function syncPendingTests() {
-  // This would be implemented to sync with Google Sheets
-  console.log('Background sync triggered');
+    let db;
+    try {
+        db = await openDB();
+    } catch (e) {
+        return { success: 0, failed: 0, error: 'DB unavailable' };
+    }
+
+    const tests = await getAllPending(db);
+    if (tests.length === 0) return { success: 0, failed: 0 };
+
+    let successCount = 0;
+    let failedCount = 0;
+
+    for (const test of tests) {
+        const ok = await syncOneTest(test);
+        if (ok) {
+            await deletePending(db, test.id);
+            successCount++;
+        } else {
+            failedCount++;
+        }
+    }
+
+    // Notify open clients to refresh their UI
+    const clients = await self.clients.matchAll();
+    clients.forEach(client => client.postMessage({
+        type: 'SYNC_COMPLETE',
+        result: { success: successCount, failed: failedCount }
+    }));
+
+    return { success: successCount, failed: failedCount };
+}
+
+async function syncOneTest(test) {
+    // 1. Generate PDF certificate via Cloud Run
+    let pdfOk = false;
+    try {
+        const res = await fetch(CLOUD_FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(test)
+        });
+        if (res.ok) {
+            const json = await res.json();
+            pdfOk = !!json.success;
+        }
+    } catch (e) {
+        // Network failure — will retry on next sync
+        return false;
+    }
+
+    // 2. Sync to Google Sheets (without photos)
+    let sheetOk = false;
+    try {
+        const sheetData = { ...test };
+        delete sheetData.photos;
+        sheetData.action = 'addFieldData';
+
+        const res = await fetch(SHEETS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sheetData)
+        });
+        if (res.ok) {
+            const json = await res.json();
+            sheetOk = !!json.success;
+        }
+    } catch (e) {
+        sheetOk = false;
+    }
+
+    // 3. Update AssetDB (best-effort, doesn't block success)
+    if (test.serialNumber) {
+        try {
+            await fetch(SHEETS_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'updateAsset',
+                    serialNumber: test.serialNumber,
+                    customer: test.customer,
+                    location: test.location,
+                    serviceType: test.serviceType,
+                    manufacturer: test.manufacturer,
+                    pipeMaterial: test.pipeMaterial,
+                    pipeSize: test.pipeSize,
+                    deviceType: test.deviceType,
+                    range: test.range,
+                    units: test.units,
+                    method: test.method,
+                    waterType: test.waterType,
+                    gpsCoordinates: test.gpsCoordinates
+                })
+            });
+        } catch (e) { /* best-effort */ }
+    }
+
+    // Test clears from queue if PDF succeeded (sheet is secondary)
+    return pdfOk;
+}
+
+// ─── IndexedDB helpers (usable in SW context) ────────────────────────────────
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open('pcms', 1);
+        req.onupgradeneeded = e => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('pending')) {
+                db.createObjectStore('pending', { keyPath: 'id' });
+            }
+        };
+        req.onsuccess = e => resolve(e.target.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function getAllPending(db) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('pending', 'readonly');
+        const req = tx.objectStore('pending').getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function deletePending(db, id) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('pending', 'readwrite');
+        const req = tx.objectStore('pending').delete(id);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+    });
 }
