@@ -3908,14 +3908,14 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
 
             // Look up last test from testHistory
             const tests = serial ? testHistory.filter(h =>
-                String(h['Serial Number'] || '').trim() === String(serial).trim()
+                String(h['Serial Number'] || h['serialNumber'] || '').trim() === String(serial).trim()
             ) : [];
 
             if (tests.length === 0) return 'overdue';
 
             // Find most recent test
-            tests.sort((a, b) => new Date(b['Date'] || 0) - new Date(a['Date'] || 0));
-            const lastTestDate = new Date(tests[0]['Date'] || 0);
+            tests.sort((a, b) => new Date(b['Timestamp'] || b['Date'] || b['timestamp'] || 0) - new Date(a['Timestamp'] || a['Date'] || a['timestamp'] || 0));
+            const lastTestDate = new Date(tests[0]['Timestamp'] || tests[0]['Date'] || tests[0]['timestamp'] || 0);
             const now = new Date();
             const daysSinceTest = (now - lastTestDate) / (1000 * 60 * 60 * 24);
 
