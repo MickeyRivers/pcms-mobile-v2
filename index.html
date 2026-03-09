@@ -1050,11 +1050,9 @@
                         <option value="PVC">PVC</option>
                         <option value="Ductile Iron">Ductile Iron</option>
                         <option value="Cast Iron">Cast Iron</option>
-                        <option value="Carbon Steel">Carbon Steel</option>
-                        <option value="Stainless Steel">Stainless Steel</option>
+                        <option value="Steel">Steel</option>
                         <option value="Copper">Copper</option>
                         <option value="HDPE">HDPE</option>
-                        <option value="FRP">FRP</option>
                     </select>
                 </div>
 
@@ -1106,30 +1104,11 @@
                         <option value="(Flume) 6-Inch Parshall">(Flume) 6-Inch Parshall</option>
                         <option value="(Flume) 9-Inch Parshall">(Flume) 9-Inch Parshall</option>
                         <option value="(Flume) 12-Inch Parshall">(Flume) 12-Inch Parshall</option>
+                        <option value="(Flume) 18-Inch Parshall">(Flume) 18-Inch Parshall</option>
                         <option value="(Flume) 24-Inch Parshall">(Flume) 24-Inch Parshall</option>
-                        <option value="(Flume) Large 60-Degree Trapezoidal">(Flume) Large 60-Degree Trapezoidal</option>
-                        <option value="(Flume) Extra Large 60-Degree Trapezoidal">(Flume) Extra Large 60-Degree Trapezoidal</option>
-                        <option value="(Flume) 6-Inch Palmer-Bowlus">(Flume) 6-Inch Palmer-Bowlus</option>
-                        <option value="(Flume) 8-Inch Palmer-Bowlus">(Flume) 8-Inch Palmer-Bowlus</option>
-                        <option value="(Flume) 10-Inch Palmer-Bowlus">(Flume) 10-Inch Palmer-Bowlus</option>
-                        <option value="(Flume) 12-Inch Palmer-Bowlus">(Flume) 12-Inch Palmer-Bowlus</option>
-                        <option value="(Flume) 15-Inch Palmer-Bowlus">(Flume) 15-Inch Palmer-Bowlus</option>
-                        <option value="(V-Notch Weir) 22.5 Degree">(V-Notch Weir) 22.5 Degree</option>
-                        <option value="(V-Notch Weir) 30 Degree">(V-Notch Weir) 30 Degree</option>
-                        <option value="(V-Notch Weir) 45 Degree">(V-Notch Weir) 45 Degree</option>
-                        <option value="(V-Notch Weir) 60 Degree">(V-Notch Weir) 60 Degree</option>
-                        <option value="(V-Notch Weir) 90 Degree">(V-Notch Weir) 90 Degree</option>
-                        <option value="(V-Notch Weir) 120 Degree">(V-Notch Weir) 120 Degree</option>
-                        <option value="(Pipe) 6-Inch">(Pipe) 6-Inch</option>
-                        <option value="(Pipe) 8-Inch">(Pipe) 8-Inch</option>
-                        <option value="(Pipe) 10-Inch">(Pipe) 10-Inch</option>
-                        <option value="(Pipe) 12-Inch">(Pipe) 12-Inch</option>
-                        <option value="(Pipe) 24-Inch">(Pipe) 24-Inch</option>
-                        <option value="(Pipe) 30-Inch">(Pipe) 30-Inch</option>
-                        <option value="(Pipe) 36-Inch">(Pipe) 36-Inch</option>
-                        <option value="(Pipe) 48-Inch">(Pipe) 48-Inch</option>
-                        <option value="(Pipe) 60-Inch">(Pipe) 60-Inch</option>
-                        <option value="Other (Primary Device Type Included in Notes Section Below)">Other (See Notes)</option>
+                        <option value="(Weir) 90° V-Notch">(Weir) 90° V-Notch</option>
+                        <option value="(Weir) 60° V-Notch">(Weir) 60° V-Notch</option>
+                        <option value="(Weir) Rectangular">(Weir) Rectangular</option>
                     </select>
                 </div>
 
@@ -1139,23 +1118,12 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Flow Units</label>
+                    <label class="form-label">Units</label>
                     <select class="form-select" id="formUnitsOC">
                         <option value="">Select...</option>
                         <option value="MGD">MGD</option>
                         <option value="GPM">GPM</option>
                         <option value="CFS">CFS</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Level Units</label>
-                    <select class="form-select" id="formLevelUnits">
-                        <option value="">Select...</option>
-                        <option value="Inches">Inches</option>
-                        <option value="Feet">Feet</option>
-                        <option value="mm">mm</option>
-                        <option value="cm">cm</option>
                     </select>
                 </div>
 
@@ -1170,22 +1138,22 @@
 
                 <div class="form-group before-field">
                     <label class="form-label">Level in Channel (Before)</label>
-                    <input type="number" step="0.01" class="form-input" id="formLevelChannelBefore" placeholder="Level">
+                    <input type="number" step="0.01" class="form-input" id="formLevelChannelBefore" placeholder="Inches">
                 </div>
 
                 <div class="form-group before-field">
                     <label class="form-label">Level on Meter (Before)</label>
-                    <input type="number" step="0.01" class="form-input" id="formLevelMeterBefore" placeholder="Level">
+                    <input type="number" step="0.01" class="form-input" id="formLevelMeterBefore" placeholder="Inches">
                 </div>
 
                 <div class="form-group after-field">
                     <label class="form-label">Level in Channel (After)</label>
-                    <input type="number" step="0.01" class="form-input" id="formLevelChannelAfter" placeholder="Level">
+                    <input type="number" step="0.01" class="form-input" id="formLevelChannelAfter" placeholder="Inches">
                 </div>
 
                 <div class="form-group after-field">
                     <label class="form-label">Level on Meter (After)</label>
-                    <input type="number" step="0.01" class="form-input" id="formLevelMeterAfter" placeholder="Level">
+                    <input type="number" step="0.01" class="form-input" id="formLevelMeterAfter" placeholder="Inches">
                 </div>
             </div>
 
@@ -1299,17 +1267,17 @@
             <div class="form-section">
                 <div class="form-section-title">📷 Photos</div>
                 <div class="photo-grid">
-                    <div class="photo-slot" onclick="showPhotoOptions(0)">
+                    <div class="photo-slot" onclick="capturePhoto(0)">
                         <span class="add-icon">+</span>
                     </div>
-                    <div class="photo-slot" onclick="showPhotoOptions(1)">
+                    <div class="photo-slot" onclick="capturePhoto(1)">
                         <span class="add-icon">+</span>
                     </div>
-                    <div class="photo-slot" onclick="showPhotoOptions(2)">
+                    <div class="photo-slot" onclick="capturePhoto(2)">
                         <span class="add-icon">+</span>
                     </div>
                 </div>
-                <p class="form-hint">Tap to capture or upload photos</p>
+                <p class="form-hint">Tap to capture photos of the installation</p>
             </div>
 
             <div class="bottom-spacer"></div>
@@ -1329,19 +1297,6 @@
             <div style="margin-top: 24px;">
                 <button class="btn btn-gold btn-block" onclick="syncPending()" id="syncBtn">
                     ↑ Sync All to Cloud
-                </button>
-            </div>
-            
-            <div id="failedCertsSection" style="margin-top: 16px; display: none;">
-                <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-                    <div style="font-weight: 600; color: #856404;">⚠️ Failed Uploads</div>
-                    <div style="font-size: 13px; color: #856404;" id="failedCertsCount">0 certificates failed to upload to Dropbox</div>
-                </div>
-                <button class="btn btn-block" style="background: var(--teal); color: white;" onclick="retryFailedCerts()">
-                    🔄 Retry Failed Uploads
-                </button>
-                <button class="btn btn-block" style="background: #dc3545; color: white; margin-top: 8px;" onclick="clearFailedCerts()">
-                    🗑️ Clear Failed
                 </button>
             </div>
         </section>
@@ -1443,8 +1398,7 @@
     <div class="toast" id="toast"></div>
 
     <!-- Hidden inputs -->
-    <input type="file" id="photoInput" accept="image/*" style="display:none">
-    <input type="file" id="photoInputCamera" accept="image/*" capture="environment" style="display:none">
+    <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
     <canvas id="scanCanvas" style="display:none"></canvas>
 
     <script>
@@ -1681,6 +1635,39 @@
         // INITIALIZATION
         // ============================================
         document.addEventListener('DOMContentLoaded', async () => {
+            // Register service worker
+            if ('serviceWorker' in navigator) {
+                try {
+                    const reg = await navigator.serviceWorker.register('./sw.js');
+                    console.log('SW registered:', reg.scope);
+
+                    navigator.serviceWorker.addEventListener('message', event => {
+                        if (event.data && event.data.type === 'SYNC_COMPLETE') {
+                            const { success, failed } = event.data.result;
+                            hideLoading();
+                            if (failed === 0 && success > 0) {
+                                showToast(`${success} test${success !== 1 ? 's' : ''} synced successfully!`, 'success');
+                            } else if (success === 0 && failed > 0) {
+                                showToast('Sync failed — will retry automatically when connection improves.', 'error');
+                            } else if (success > 0) {
+                                showToast(`${success} synced, ${failed} will retry automatically.`, 'info');
+                            }
+                            loadPendingTests();
+                            updateFailedCertsUI();
+                        }
+                    });
+
+                    window.addEventListener('online', () => {
+                        updateOnlineStatus();
+                        if ('SyncManager' in window) {
+                            reg.sync.register('pcms-sync').catch(() => {});
+                        }
+                    });
+                } catch (e) {
+                    console.warn('SW registration failed:', e);
+                }
+            }
+
             // Check PIN first
             checkPinSetup();
             
@@ -1693,19 +1680,17 @@
             // Initialize tracker
             initTracker();
             
-            // Load pending tests from localStorage
-            loadPendingTests();
+            // Load pending tests from IndexedDB
+            await loadPendingTests();
             
             // Check online status
             updateOnlineStatus();
-            window.addEventListener('online', updateOnlineStatus);
             window.addEventListener('offline', updateOnlineStatus);
             
             // Setup photo input handler
             document.getElementById('photoInput').addEventListener('change', handlePhotoCapture);
             document.getElementById('photoInputCamera').addEventListener('change', handlePhotoCapture);
         });
-
         // ============================================
         // ASSET DATABASE
         // ============================================
@@ -2837,7 +2822,6 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             // Update pending list when showing pending screen
             if (screenId === 'pendingScreen') {
                 updatePendingList();
-                updateFailedCertsUI();
             }
             
             // Update pending count
@@ -3173,39 +3157,6 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         // ============================================
         // PHOTO CAPTURE
         // ============================================
-        function showPhotoOptions(index) {
-            currentPhotoIndex = index;
-            // Show action sheet style dialog
-            const dialog = document.createElement('div');
-            dialog.id = 'photoOptionsDialog';
-            dialog.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;justify-content:center;z-index:9999;';
-            dialog.innerHTML = `
-                <div style="background:white;width:100%;max-width:400px;border-radius:16px 16px 0 0;padding:16px;padding-bottom:32px;">
-                    <div style="text-align:center;margin-bottom:16px;font-weight:600;color:#333;">Add Photo</div>
-                    <button onclick="takePhoto()" style="width:100%;padding:14px;margin-bottom:8px;background:var(--gold);border:none;border-radius:8px;font-size:16px;font-weight:500;cursor:pointer;">📷 Take Photo</button>
-                    <button onclick="chooseFromGallery()" style="width:100%;padding:14px;margin-bottom:8px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:16px;font-weight:500;cursor:pointer;">🖼️ Choose from Gallery</button>
-                    <button onclick="closePhotoDialog()" style="width:100%;padding:14px;background:#eee;border:none;border-radius:8px;font-size:16px;cursor:pointer;">Cancel</button>
-                </div>
-            `;
-            dialog.onclick = (e) => { if (e.target === dialog) closePhotoDialog(); };
-            document.body.appendChild(dialog);
-        }
-
-        function takePhoto() {
-            closePhotoDialog();
-            document.getElementById('photoInputCamera').click();
-        }
-
-        function chooseFromGallery() {
-            closePhotoDialog();
-            document.getElementById('photoInput').click();
-        }
-
-        function closePhotoDialog() {
-            const dialog = document.getElementById('photoOptionsDialog');
-            if (dialog) dialog.remove();
-        }
-
         function capturePhoto(index) {
             currentPhotoIndex = index;
             document.getElementById('photoInput').click();
@@ -3345,7 +3296,6 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     testRecord.deviceType = document.getElementById('formDeviceType').value;
                     testRecord.range = document.getElementById('formRange').value;
                     testRecord.units = document.getElementById('formUnitsOC').value;
-                    testRecord.levelUnits = document.getElementById('formLevelUnits').value;
                     testRecord.method = document.getElementById('formMethodOC').value;
                     testRecord.levelChannelBefore = document.getElementById('formLevelChannelBefore').value;
                     testRecord.levelMeterBefore = document.getElementById('formLevelMeterBefore').value;
@@ -3390,7 +3340,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             resetForm();
             
             showToast('Test saved! Ready to sync when online.', 'success');
-            showScreen('homeScreen');
+            showScreen('pendingScreen');
             updatePendingCount();
         }
 
@@ -3447,7 +3397,6 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                     document.getElementById('formDeviceType').value = test.deviceType || '';
                     document.getElementById('formRange').value = test.range || '';
                     document.getElementById('formUnitsOC').value = test.units || '';
-                    document.getElementById('formLevelUnits').value = test.levelUnits || '';
                     document.getElementById('formMethodOC').value = test.method || '';
                     document.getElementById('formLevelChannelBefore').value = test.levelChannelBefore || '';
                     document.getElementById('formLevelMeterBefore').value = test.levelMeterBefore || '';
@@ -3487,17 +3436,72 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             showToast('Editing test - make changes and save', 'info');
         }
 
-        function loadPendingTests() {
-            const stored = localStorage.getItem('pendingTests');
-            if (stored) {
-                pendingTests = JSON.parse(stored);
+        // ─── IndexedDB helpers ────────────────────────────────────────────────
+        function openPCMSDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open('pcms', 1);
+                req.onupgradeneeded = e => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('pending')) {
+                        db.createObjectStore('pending', { keyPath: 'id' });
+                    }
+                };
+                req.onsuccess = e => resolve(e.target.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function loadPendingTests() {
+            try {
+                const db = await openPCMSDB();
+                const tx = db.transaction('pending', 'readonly');
+                const req = tx.objectStore('pending').getAll();
+                await new Promise((res, rej) => { req.onsuccess = res; req.onerror = rej; });
+                pendingTests = req.result || [];
+
+                // One-time migration from localStorage
+                const legacy = localStorage.getItem('pendingTests');
+                if (legacy) {
+                    const old = JSON.parse(legacy);
+                    if (old.length > 0) {
+                        const db2 = await openPCMSDB();
+                        const tx2 = db2.transaction('pending', 'readwrite');
+                        const store = tx2.objectStore('pending');
+                        for (const t of old) { store.put(t); }
+                        await new Promise((res, rej) => { tx2.oncomplete = res; tx2.onerror = rej; });
+                        localStorage.removeItem('pendingTests');
+                        // Merge without duplicates
+                        const ids = new Set(pendingTests.map(t => t.id));
+                        for (const t of old) { if (!ids.has(t.id)) pendingTests.push(t); }
+                    }
+                }
+            } catch (e) {
+                console.warn('IndexedDB unavailable, falling back to localStorage:', e);
+                const stored = localStorage.getItem('pendingTests');
+                pendingTests = stored ? JSON.parse(stored) : [];
             }
             updatePendingCount();
             updatePendingList();
         }
 
-        function savePendingTests() {
-            localStorage.setItem('pendingTests', JSON.stringify(pendingTests));
+        async function savePendingTests() {
+            try {
+                const db = await openPCMSDB();
+                const tx = db.transaction('pending', 'readwrite');
+                const store = tx.objectStore('pending');
+                store.clear();
+                for (const t of pendingTests) { store.put(t); }
+                await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+
+                // Register background sync if supported
+                if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                    const reg = await navigator.serviceWorker.ready;
+                    await reg.sync.register('pcms-sync').catch(() => {});
+                }
+            } catch (e) {
+                console.warn('IndexedDB save failed, using localStorage:', e);
+                localStorage.setItem('pendingTests', JSON.stringify(pendingTests));
+            }
             updatePendingCount();
             updatePendingList();
         }
@@ -3558,294 +3562,125 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             }
         }
 
-        // Failed certificate management - stores tests that failed to upload to Dropbox
-        let failedCerts = JSON.parse(localStorage.getItem('pcms_failed_certs') || '[]');
-
-        function saveFailedCert(test, errorMsg) {
-            const failedCert = {
-                ...test,
-                failedAt: new Date().toISOString(),
-                errorMessage: errorMsg
-            };
-            failedCerts.push(failedCert);
-            localStorage.setItem('pcms_failed_certs', JSON.stringify(failedCerts));
-            console.log('Saved failed cert for retry:', test.serialNumber);
-        }
-
-        function getFailedCerts() {
-            return failedCerts;
-        }
-
-        async function retryFailedCerts() {
-            if (failedCerts.length === 0) {
-                showToast('No failed certificates to retry', 'info');
-                return;
-            }
-
-            showLoading('Retrying failed certificates...');
-            let successCount = 0;
-            const stillFailed = [];
-
-            for (const cert of failedCerts) {
-                try {
-                    const response = await fetch(CLOUD_FUNCTION_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(cert)
-                    });
-                    const result = await response.json();
-
-                    if (response.ok && result.success) {
-                        successCount++;
-                        console.log(`Retry success: ${result.dropbox_path}`);
-                    } else {
-                        stillFailed.push(cert);
-                    }
-                } catch (error) {
-                    stillFailed.push(cert);
-                }
-            }
-
-            failedCerts = stillFailed;
-            localStorage.setItem('pcms_failed_certs', JSON.stringify(failedCerts));
-            hideLoading();
-
-            if (successCount > 0) {
-                showToast(`${successCount} certificate(s) uploaded successfully!`, 'success');
-            }
-            if (stillFailed.length > 0) {
-                showToast(`${stillFailed.length} still failed - try again later`, 'error');
-            }
-        }
-
-        function clearFailedCerts() {
-            if (confirm(`Clear ${failedCerts.length} failed certificate(s)?`)) {
-                failedCerts = [];
-                localStorage.setItem('pcms_failed_certs', JSON.stringify(failedCerts));
-                showToast('Failed certificates cleared', 'info');
-                updateFailedCertsUI();
-            }
-        }
-
-        function updateFailedCertsUI() {
-            const section = document.getElementById('failedCertsSection');
-            const countEl = document.getElementById('failedCertsCount');
-            if (failedCerts.length > 0) {
-                section.style.display = 'block';
-                countEl.textContent = `${failedCerts.length} certificate(s) failed to upload to Dropbox`;
-            } else {
-                section.style.display = 'none';
-            }
-        }
-
         const CLOUD_FUNCTION_URL = 'https://generate-certificate-980517620937.us-central1.run.app';
         const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbylCjhUdLU-Pg5mfjl16Qsf4-9uin-ZgD4T2qxhvVnnQ0dv8kMDQ6EZTEcNxosLfEZFmg/exec';
         const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbylCjhUdLU-Pg5mfjl16Qsf4-9uin-ZgD4T2qxhvVnnQ0dv8kMDQ6EZTEcNxosLfEZFmg/exec';
 
         async function syncPending() {
+            await loadPendingTests(); // Ensure fresh from IndexedDB
             if (pendingTests.length === 0) {
                 showToast('No tests to sync', 'info');
                 return;
             }
-            
+
             if (!navigator.onLine) {
-                showToast('No internet connection', 'error');
+                showToast('No internet — tests saved locally and will sync automatically when you’re back on WiFi.', 'info');
                 return;
             }
-            
+
             showLoading('Syncing to cloud...');
-            
+
+            // Prefer SW-based sync so it survives tab close / connection drops
+            if ('serviceWorker' in navigator) {
+                try {
+                    const reg = await navigator.serviceWorker.ready;
+                    if (reg.active) {
+                        reg.active.postMessage({ type: 'MANUAL_SYNC' });
+                        // Result handled by message listener in DOMContentLoaded
+                        return;
+                    }
+                } catch(e) { /* fall through to direct sync */ }
+            }
+
+            // Fallback: SW not available, sync directly in page
+            const SHEETS_URL = GOOGLE_SHEET_URL;
             let successCount = 0;
             let failCount = 0;
             const failedTests = [];
-            
+
             for (let i = 0; i < pendingTests.length; i++) {
                 const test = pendingTests[i];
                 document.getElementById('loadingText').textContent = `Syncing ${i + 1} of ${pendingTests.length}...`;
-                
-                let pdfSuccess = false;
-                let sheetSuccess = false;
-                
+
+                let pdfOk = false;
+
                 // 1. Generate PDF certificate
                 try {
-                    const pdfResponse = await fetch(CLOUD_FUNCTION_URL, {
+                    const res = await fetch(CLOUD_FUNCTION_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(test)
                     });
-                    
-                    const pdfResult = await pdfResponse.json();
-                    
-                    if (pdfResponse.ok && pdfResult.success) {
-                        pdfSuccess = true;
-                        console.log(`Certificate created: ${pdfResult.dropbox_path}`);
+                    if (res.ok) {
+                        const json = await res.json();
+                        pdfOk = !!json.success;
+                        if (!pdfOk) saveFailedCert(test, json.error || 'Unknown error');
                     } else {
-                        console.error(`Failed to create certificate: ${pdfResult.error}`);
-                        // Save to failed certs for retry later
-                        saveFailedCert(test, pdfResult.error || 'Unknown error');
+                        saveFailedCert(test, `HTTP ${res.status}`);
                     }
-                } catch (error) {
-                    console.error(`Error creating PDF: ${error}`);
-                    // Save to failed certs for retry later
-                    saveFailedCert(test, error.message || 'Network error');
+                } catch (e) {
+                    saveFailedCert(test, e.message || 'Network error');
                 }
-                
-                // 2. Sync to Google Sheets using hidden iframe form (without photos - too large)
+
+                // 2. Sync to Google Sheets (real fetch, not iframe)
                 try {
-                    // Create a copy of test without photos for Google Sheets
-                    const sheetData = {...test};
-                    delete sheetData.photos;  // Remove photos - too large for sheets
-                    
-                    // Create a hidden iframe and form
-                    const iframe = document.createElement('iframe');
-                    iframe.name = 'sheetFrame' + i;
-                    iframe.style.display = 'none';
-                    document.body.appendChild(iframe);
-                    
-                    const form = document.createElement('form');
-                    form.method = 'POST';
-                    form.action = GOOGLE_SHEET_URL;
-                    form.target = iframe.name;
-                    
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = 'data';
-                    input.value = JSON.stringify(sheetData);
-                    form.appendChild(input);
-                    
-                    document.body.appendChild(form);
-                    form.submit();
-                    
-                    // Clean up after a delay
-                    setTimeout(() => {
-                        document.body.removeChild(form);
-                        document.body.removeChild(iframe);
-                    }, 2000);
-                    
-                    sheetSuccess = true;
-                    console.log('Synced to Google Sheets');
-                } catch (error) {
-                    console.error(`Error syncing to sheet: ${error}`);
-                }
-                
-                // 3. Update AssetDB with any new field data (or create if not exists)
+                    const sheetData = { ...test, action: 'addFieldData' };
+                    delete sheetData.photos;
+                    await fetch(SHEETS_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(sheetData)
+                    });
+                } catch (e) { /* best-effort */ }
+
+                // 3. Update AssetDB (best-effort)
                 if (test.serialNumber) {
                     try {
-                        // Create asset update data with action
-                        const assetData = {
-                            action: 'updateAsset',
-                            serialNumber: test.serialNumber,
-                            customer: test.customer,
-                            location: test.location,
-                            serviceType: test.serviceType,
-                            serviceFrequency: test.serviceFrequency,
-                            manufacturer: test.manufacturer,
-                            pipeMaterial: test.pipeMaterial,
-                            pipeSize: test.pipeSize,
-                            deviceType: test.deviceType,
-                            range: test.range,
-                            units: test.units,
-                            method: test.method,
-                            waterType: test.waterType,
-                            gpsCoordinates: test.gpsCoordinates
-                        };
-                        
-                        const updateIframe = document.createElement('iframe');
-                        updateIframe.name = 'assetFrame' + i;
-                        updateIframe.style.display = 'none';
-                        document.body.appendChild(updateIframe);
-                        
-                        const updateForm = document.createElement('form');
-                        updateForm.method = 'POST';
-                        updateForm.action = ASSETDB_URL;
-                        updateForm.target = updateIframe.name;
-                        
-                        const updateInput = document.createElement('input');
-                        updateInput.type = 'hidden';
-                        updateInput.name = 'data';
-                        updateInput.value = JSON.stringify(assetData);
-                        updateForm.appendChild(updateInput);
-                        
-                        document.body.appendChild(updateForm);
-                        updateForm.submit();
-                        
-                        setTimeout(() => {
-                            document.body.removeChild(updateForm);
-                            document.body.removeChild(updateIframe);
-                        }, 2000);
-                        
-                        console.log('AssetDB update sent');
-                    } catch (error) {
-                        console.error(`Error updating AssetDB: ${error}`);
-                    }
-                    
-                    // 4. Add to Test History
-                    try {
-                        const historyData = {
-                            action: 'addHistory',
-                            customer: test.customer,
-                            location: test.location,
-                            timestamp: test.timestamp,
-                            testedBy: test.testedBy,
-                            manufacturer: test.manufacturer,
-                            serialNumber: test.serialNumber,
-                            accuracy: '', // Can be added later if needed
-                            gpsCoordinates: test.gpsCoordinates
-                        };
-                        
-                        const historyIframe = document.createElement('iframe');
-                        historyIframe.name = 'historyFrame' + i;
-                        historyIframe.style.display = 'none';
-                        document.body.appendChild(historyIframe);
-                        
-                        const historyForm = document.createElement('form');
-                        historyForm.method = 'POST';
-                        historyForm.action = ASSETDB_URL;
-                        historyForm.target = historyIframe.name;
-                        
-                        const historyInput = document.createElement('input');
-                        historyInput.type = 'hidden';
-                        historyInput.name = 'data';
-                        historyInput.value = JSON.stringify(historyData);
-                        historyForm.appendChild(historyInput);
-                        
-                        document.body.appendChild(historyForm);
-                        historyForm.submit();
-                        
-                        setTimeout(() => {
-                            document.body.removeChild(historyForm);
-                            document.body.removeChild(historyIframe);
-                        }, 2000);
-                        
-                        console.log('Test History updated');
-                    } catch (error) {
-                        console.error(`Error updating Test History: ${error}`);
-                    }
+                        await fetch(SHEETS_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'updateAsset',
+                                serialNumber: test.serialNumber,
+                                customer: test.customer,
+                                location: test.location,
+                                serviceType: test.serviceType,
+                                serviceFrequency: test.serviceFrequency,
+                                manufacturer: test.manufacturer,
+                                pipeMaterial: test.pipeMaterial,
+                                pipeSize: test.pipeSize,
+                                deviceType: test.deviceType,
+                                range: test.range,
+                                units: test.units,
+                                method: test.method,
+                                waterType: test.waterType,
+                                gpsCoordinates: test.gpsCoordinates
+                            })
+                        });
+                    } catch (e) { /* best-effort */ }
                 }
-                
-                // Consider success if either worked
-                if (pdfSuccess || sheetSuccess) {
+
+                if (pdfOk) {
                     successCount++;
                 } else {
                     failCount++;
                     failedTests.push(test);
                 }
             }
-            
-            // Keep only failed tests in pending
+
             pendingTests = failedTests;
-            savePendingTests();
-            
+            await savePendingTests();
+            updateFailedCertsUI();
             hideLoading();
-            
+
             if (failCount === 0) {
                 showToast(`${successCount} test${successCount !== 1 ? 's' : ''} synced successfully!`, 'success');
             } else if (successCount === 0) {
-                showToast(`Sync failed. Check your connection.`, 'error');
+                showToast('Sync failed — will retry automatically when connection improves.', 'error');
             } else {
-                showToast(`${successCount} synced, ${failCount} failed. Retry later.`, 'info');
+                showToast(`${successCount} synced, ${failCount} will retry automatically.`, 'info');
             }
-            
+
             updatePendingList();
         }
 
@@ -3875,14 +3710,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             }, 3000);
         }
 
-        // ============================================
-        // SERVICE WORKER REGISTRATION
-        // ============================================
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-                .then(reg => console.log('Service Worker registered'))
-                .catch(err => console.log('Service Worker registration failed:', err));
-        }
+        // SW registration handled in DOMContentLoaded above
     </script>
 </body>
 </html>
