@@ -3729,17 +3729,21 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
 
             for (let i = 0; i < pendingTests.length; i++) {
                 const test = pendingTests[i];
-                document.getElementById('loadingText').textContent = `Syncing ${i + 1} of ${pendingTests.length}...`;
+                document.getElementById('loadingText').textContent = `Syncing ${i + 1} of ${pendingTests.length} - generating PDF...`;
 
                 let pdfOk = false;
 
                 // 1. Generate PDF certificate
                 try {
+                    const pdfAbort = new AbortController();
+                    const pdfTimeout = setTimeout(() => pdfAbort.abort(), 30000);
                     const res = await fetch(CLOUD_FUNCTION_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(test)
+                        body: JSON.stringify(test),
+                        signal: pdfAbort.signal
                     });
+                    clearTimeout(pdfTimeout);
                     if (res.ok) {
                         const json = await res.json();
                         pdfOk = !!json.success;
@@ -3748,7 +3752,12 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                         saveFailedCert(test, `HTTP ${res.status}`);
                     }
                 } catch (e) {
-                    saveFailedCert(test, e.message || 'Network error');
+                    if (e.name === 'AbortError') {
+                        saveFailedCert(test, 'Timeout - Cloud Run took too long');
+                        showToast('PDF generation timed out - saved to retry later', 'warning');
+                    } else {
+                        saveFailedCert(test, e.message || 'Network error');
+                    }
                 }
 
                 // 2. Sync to Google Sheets
