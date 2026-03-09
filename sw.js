@@ -1,5 +1,5 @@
 // PCMS Service Worker - Offline Cache + Background Sync
-const CACHE_NAME = 'pcms-v1';
+const CACHE_NAME = 'pcms-v3';
 const SYNC_TAG = 'pcms-sync';
 
 const CLOUD_FUNCTION_URL = 'https://generate-certificate-980517620937.us-central1.run.app';
