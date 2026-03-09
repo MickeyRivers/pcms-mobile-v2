@@ -1,5 +1,5 @@
 // PCMS Service Worker - Offline Cache + Background Sync
-const CACHE_NAME = 'pcms-v4';
+const CACHE_NAME = 'pcms-v5';
 const SYNC_TAG = 'pcms-sync';
 
 const CLOUD_FUNCTION_URL = 'https://generate-certificate-980517620937.us-central1.run.app';
@@ -127,17 +127,21 @@ async function syncOneTest(test) {
     // 1. Generate PDF certificate via Cloud Run
     let pdfOk = false;
     try {
+        const pdfAbort = new AbortController();
+        const pdfTimeout = setTimeout(() => pdfAbort.abort(), 30000);
         const res = await fetch(CLOUD_FUNCTION_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(test)
+            body: JSON.stringify(test),
+            signal: pdfAbort.signal
         });
+        clearTimeout(pdfTimeout);
         if (res.ok) {
             const json = await res.json();
             pdfOk = !!json.success;
         }
     } catch (e) {
-        // Network failure — will retry on next sync
+        // Network failure or timeout — will retry on next sync
         return false;
     }
 
