@@ -1521,6 +1521,16 @@
         let isSettingPin = false;
         let newPinFirst = '';
         let pendingResetCode = '';
+
+        // Map state
+        let siteMap = null;
+        let mapMarkers = [];
+        let mapRouteLine = null;
+        let mapSites = [];
+        let currentMapFilter = 'all';
+        let routeStartCoords = null;
+        let routeEndCoords = { lat: 29.5478, lng: -98.4936 }; // Default: San Antonio
+        let plannedRoute = [];
         const RESET_CODE_URL = 'https://script.google.com/macros/s/AKfycbylCjhUdLU-Pg5mfjl16Qsf4-9uin-ZgD4T2qxhvVnnQ0dv8kMDQ6EZTEcNxosLfEZFmg/exec';
 
         // ============================================
@@ -3866,7 +3876,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             }).map(site => {
                 const gps = (site['GPS Coordinates'] || site.gpsCoordinates || '').toString().split(',');
                 return {
-                    name: site['Location'] || site.location || 'Unknown',
+                    name: site['Facility/Location'] || site['Location'] || site.location || 'Unknown',
                     customer: site['Customer'] || site.customer || '',
                     serial: site['Serial Number'] || site.serialNumber || '',
                     lat: parseFloat(gps[0]?.trim()),
@@ -3893,18 +3903,26 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         }
 
         function getTestStatus(site) {
-            const lastTest = site['Last Test Date'] || '';
-            if (!lastTest) return 'overdue';
-            
-            const lastTestDate = new Date(lastTest);
+            const serial = site['Serial Number'] || '';
+            const frequency = site['Service Frequency'] || 'Annual';
+
+            // Look up last test from testHistory
+            const tests = serial ? testHistory.filter(h =>
+                String(h['Serial Number'] || '').trim() === String(serial).trim()
+            ) : [];
+
+            if (tests.length === 0) return 'overdue';
+
+            // Find most recent test
+            tests.sort((a, b) => new Date(b['Date'] || 0) - new Date(a['Date'] || 0));
+            const lastTestDate = new Date(tests[0]['Date'] || 0);
             const now = new Date();
             const daysSinceTest = (now - lastTestDate) / (1000 * 60 * 60 * 24);
-            
-            const frequency = site['Service Frequency'] || 'Annual';
+
             let daysAllowed = 365;
             if (frequency === 'Semi-Annual') daysAllowed = 180;
             else if (frequency === 'Quarterly') daysAllowed = 90;
-            
+
             if (daysSinceTest > daysAllowed) return 'overdue';
             if (daysSinceTest > daysAllowed - 60) return 'due';
             return 'tested';
