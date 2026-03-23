@@ -3957,7 +3957,8 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         function loadPendingTests() {
             const stored = localStorage.getItem('pendingTests');
             if (stored) {
-                pendingTests = JSON.parse(stored);
+                pendingTests = JSON.parse(stored).map(t => sanitizeRecord(t));
+                savePendingTests(); // re-save with sanitized data
             }
             updatePendingCount();
             updatePendingList();
@@ -4029,14 +4030,23 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         let failedCerts = JSON.parse(localStorage.getItem('pcms_failed_certs') || '[]');
 
         function saveFailedCert(test, errorMsg) {
+            // Store only key fields to avoid localStorage quota issues
             const failedCert = {
-                ...test,
+                id: test.id,
+                serialNumber: test.serialNumber,
+                customer: test.customer,
+                location: test.location,
+                serviceType: test.serviceType,
                 failedAt: new Date().toISOString(),
                 errorMessage: errorMsg
             };
             failedCerts.push(failedCert);
-            localStorage.setItem('pcms_failed_certs', JSON.stringify(failedCerts));
-            console.log('Saved failed cert for retry:', test.serialNumber);
+            try {
+                localStorage.setItem('pcms_failed_certs', JSON.stringify(failedCerts));
+                console.log('Saved failed cert for retry:', test.serialNumber);
+            } catch(e) {
+                console.log('Could not save failed cert (storage full):', e.message);
+            }
         }
 
         function getFailedCerts() {
@@ -4105,7 +4115,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
             }
         }
 
-        const CLOUD_FUNCTION_URL = 'https://generate-certificate-980517620937.us-central1.run.app';
+        const CLOUD_FUNCTION_URL = 'https://generate-certificate-test2-980517620937.us-central1.run.app';
         const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbylCjhUdLU-Pg5mfjl16Qsf4-9uin-ZgD4T2qxhvVnnQ0dv8kMDQ6EZTEcNxosLfEZFmg/exec';
         const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbylCjhUdLU-Pg5mfjl16Qsf4-9uin-ZgD4T2qxhvVnnQ0dv8kMDQ6EZTEcNxosLfEZFmg/exec';
 
