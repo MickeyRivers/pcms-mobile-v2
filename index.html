@@ -1,4 +1,4 @@
-v<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -808,38 +808,6 @@ v<!DOCTYPE html>
     </header>
 
     <!-- PIN Lock Screen -->
-    <!-- Auth Screen -->
-    <div id="authScreen" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:var(--navy); z-index:9998; flex-direction:column; align-items:center; justify-content:center;">
-        <div style="text-align:center; padding:24px; width:100%; max-width:340px;">
-            <div style="font-size:52px; margin-bottom:16px;">🔐</div>
-            <h2 style="color:white; margin-bottom:8px; font-size:22px;">PCMS Mobile</h2>
-            <p style="color:var(--gray-400); margin-bottom:4px; font-size:13px;">Precision Calibration & Measurement Services</p>
-            <p style="color:var(--gray-500); margin-bottom:28px; font-size:12px;" id="authMessage">Enter your email to request access</p>
-            <div id="authEmailState">
-                <input type="email" id="authEmail" placeholder="your@email.com"
-                    style="width:100%; padding:14px 16px; border-radius:10px; border:2px solid var(--gold); background:rgba(255,255,255,0.1); color:white; font-size:16px; text-align:center; margin-bottom:16px; box-sizing:border-box;">
-                <button onclick="requestAccess()" style="width:100%; padding:14px; background:var(--gold); color:var(--navy); border:none; border-radius:10px; font-size:16px; font-weight:700; cursor:pointer;">
-                    Request Access
-                </button>
-            </div>
-            <div id="authPendingState" style="display:none;">
-                <div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:20px; margin-bottom:20px;">
-                    <div style="font-size:28px; margin-bottom:8px;">⏳</div>
-                    <p style="color:white; font-size:14px; line-height:1.6;">Your request is pending approval.</p>
-                    <p style="color:var(--gray-400); font-size:12px; margin-top:8px;" id="authPendingEmail"></p>
-                </div>
-                <button onclick="checkAccessStatus()" style="width:100%; padding:14px; background:rgba(255,255,255,0.15); color:white; border:none; border-radius:10px; font-size:15px; cursor:pointer; margin-bottom:12px;">🔄 Check Status</button>
-                <button onclick="showAuthEmailState()" style="width:100%; padding:12px; background:transparent; color:var(--gray-500); border:none; font-size:13px; cursor:pointer;">Use a different email</button>
-            </div>
-            <div id="authRevokedState" style="display:none;">
-                <div style="background:rgba(229,62,62,0.2); border-radius:12px; padding:20px; margin-bottom:20px;">
-                    <p style="color:#fc8181; font-size:14px; line-height:1.6;">Your access has been revoked. Contact <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3a575359517a5c56554d17595f484e14595557">[email&#160;protected]</a>.</p>
-                </div>
-                <button onclick="showAuthEmailState()" style="width:100%; padding:12px; background:transparent; color:var(--gray-500); border:none; font-size:13px; cursor:pointer;">Try a different email</button>
-            </div>
-        </div>
-    </div>
-
     <div id="pinLockScreen" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--navy); z-index: 9999; flex-direction: column; align-items: center; justify-content: center;">
         <div style="text-align: center; padding: 20px;">
             <div style="font-size: 48px; margin-bottom: 16px;">🔒</div>
@@ -1158,6 +1126,8 @@ v<!DOCTYPE html>
                         <option value="GPD">GPD</option>
                     </select>
                 </div>
+
+
 
                 <div class="form-group before-field">
                     <label class="form-label">Flow Rate - Validating Meter (Before) <span class="unit-badge" id="unitBadgeCPValBefore">GPM</span></label>
@@ -1778,7 +1748,7 @@ v<!DOCTYPE html>
     <input type="file" id="photoInputCamera" accept="image/*" capture="environment" style="display:none">
     <canvas id="scanCanvas" style="display:none"></canvas>
 
-    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+    <script>
         // ============================================
         // APP STATE
         // ============================================
@@ -1800,36 +1770,15 @@ v<!DOCTYPE html>
         // ============================================
         // PIN SECURITY
         // ============================================
-        const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxb8leTGeV4CfMpEp-7aDDJ4GFzs27PxCSDVabEwU6mbM0uyUWhMSBXvbpREXuRfA7RZw/exec';
-
         function checkPinSetup() {
             const storedPin = localStorage.getItem('pcms_pin');
             const storedEmail = localStorage.getItem('pcms_recovery_email');
-            const authToken = localStorage.getItem('pcms_auth_token');
-            const authEmail = localStorage.getItem('pcms_auth_email');
-            const isAdmin = localStorage.getItem('pcms_is_admin') === 'true';
             const pinLockScreen = document.getElementById('pinLockScreen');
             const mainContainer = document.getElementById('mainContainer');
-
-            if (isAdmin || storedPin) {
-                showPinScreen(storedPin);
-                return;
-            }
-            if (authToken && authEmail) {
-                verifyStoredAuth(authEmail, authToken);
-                return;
-            }
-            showAuthScreen();
-        }
-
-        function showPinScreen(storedPin) {
-            document.getElementById('authScreen').style.display = 'none';
-            const pinLockScreen = document.getElementById('pinLockScreen');
-            const mainContainer = document.getElementById('mainContainer');
+            
             if (!storedPin) {
                 // No PIN set - prompt to create one
                 isSettingPin = true;
-                const storedEmail = localStorage.getItem('pcms_recovery_email');
                 if (!storedEmail) {
                     // Need email first
                     document.getElementById('pinMessage').textContent = 'Set up recovery email';
@@ -1843,6 +1792,7 @@ v<!DOCTYPE html>
                 pinLockScreen.style.display = 'flex';
                 mainContainer.style.display = 'none';
             } else {
+                // PIN exists - require unlock
                 document.getElementById('pinMessage').textContent = 'Enter your 4-digit PIN';
                 document.getElementById('pinSetupLink').style.display = 'block';
                 document.getElementById('emailSetup').style.display = 'none';
@@ -1853,112 +1803,6 @@ v<!DOCTYPE html>
                 mainContainer.style.display = 'none';
             }
         }
-
-        function showAuthScreen() {
-            document.getElementById('authScreen').style.display = 'flex';
-            document.getElementById('pinLockScreen').style.display = 'none';
-            document.getElementById('mainContainer').style.display = 'none';
-            showAuthEmailState();
-        }
-
-        function showAuthEmailState() {
-            document.getElementById('authEmailState').style.display = 'block';
-            document.getElementById('authPendingState').style.display = 'none';
-            document.getElementById('authRevokedState').style.display = 'none';
-            document.getElementById('authMessage').textContent = 'Enter your email to request access';
-        }
-
-        async function verifyStoredAuth(email, token) {
-            try {
-                const res = await fetch(SHEETS_URL + '?action=checkAuth&email=' + encodeURIComponent(email));
-                const data = await res.json();
-                if (data.status === 'Active' && data.token === token) {
-                    showPinScreen(localStorage.getItem('pcms_pin'));
-                } else if (data.status === 'Revoked') {
-                    localStorage.removeItem('pcms_auth_token');
-                    localStorage.removeItem('pcms_auth_email');
-                    showAuthScreen();
-                    document.getElementById('authRevokedState').style.display = 'block';
-                    document.getElementById('authEmailState').style.display = 'none';
-                } else {
-                    showPinScreen(localStorage.getItem('pcms_pin'));
-                }
-            } catch(e) {
-                showPinScreen(localStorage.getItem('pcms_pin'));
-            }
-        }
-
-        async function requestAccess() {
-            const email = document.getElementById('authEmail').value.trim().toLowerCase();
-            if (!email || !email.includes('@')) {
-                document.getElementById('authMessage').textContent = 'Please enter a valid email address';
-                return;
-            }
-            document.getElementById('authMessage').textContent = 'Sending request...';
-            try {
-                const res = await fetch(SHEETS_URL + '?action=requestAccess&email=' + encodeURIComponent(email));
-                const data = await res.json();
-                localStorage.setItem('pcms_auth_email', email);
-                if (data.status === 'already_approved') {
-                    localStorage.setItem('pcms_auth_token', data.token);
-                    showPinScreen(localStorage.getItem('pcms_pin'));
-                } else if (data.status === 'revoked') {
-                    document.getElementById('authEmailState').style.display = 'none';
-                    document.getElementById('authRevokedState').style.display = 'block';
-                } else {
-                    document.getElementById('authEmailState').style.display = 'none';
-                    document.getElementById('authPendingState').style.display = 'block';
-                    document.getElementById('authPendingEmail').textContent = email;
-                    document.getElementById('authMessage').textContent = 'Request submitted — pending approval';
-                }
-            } catch(e) {
-                document.getElementById('authMessage').textContent = 'Error: ' + e.message;
-            }
-        }
-
-        async function checkAccessStatus() {
-            const email = localStorage.getItem('pcms_auth_email') || document.getElementById('authEmail').value.trim().toLowerCase();
-            if (!email) { showAuthEmailState(); return; }
-            document.getElementById('authMessage').textContent = 'Checking...';
-            try {
-                const res = await fetch(SHEETS_URL + '?action=checkAuth&email=' + encodeURIComponent(email));
-                const data = await res.json();
-                if (data.status === 'Active') {
-                    localStorage.setItem('pcms_auth_token', data.token);
-                    localStorage.setItem('pcms_auth_email', email);
-                    showPinScreen(localStorage.getItem('pcms_pin'));
-                } else if (data.status === 'Revoked') {
-                    document.getElementById('authPendingState').style.display = 'none';
-                    document.getElementById('authRevokedState').style.display = 'block';
-                } else {
-                    document.getElementById('authMessage').textContent = 'Still pending — check back soon';
-                }
-            } catch(e) {
-                document.getElementById('authMessage').textContent = 'Network error — try again';
-            }
-        }
-
-        function startAuthPolling() {
-            const isAdmin = localStorage.getItem('pcms_is_admin') === 'true';
-            if (isAdmin) return;
-            setInterval(async () => {
-                const authToken = localStorage.getItem('pcms_auth_token');
-                const authEmail = localStorage.getItem('pcms_auth_email');
-                if (!authToken || !authEmail) return;
-                try {
-                    const res = await fetch(SHEETS_URL + '?action=checkAuth&email=' + encodeURIComponent(authEmail));
-                    const data = await res.json();
-                    if (data.status === 'Revoked') {
-                        localStorage.removeItem('pcms_auth_token');
-                        localStorage.removeItem('pcms_auth_email');
-                        localStorage.removeItem('pcms_pin');
-                        showAuthScreen();
-                        document.getElementById('authRevokedState').style.display = 'block';
-                        document.getElementById('authEmailState').style.display = 'none';
-                    }
-                } catch(e) {}
-            }, 5 * 60 * 1000);
-        }
         
         function handlePhotoFile(event, index) {
             const file = event.target.files[0];
@@ -1968,8 +1812,7 @@ v<!DOCTYPE html>
                 photos[index] = e.target.result;
                 const slot = document.getElementById('photoSlot' + index);
                 if (slot) {
-                    slot.innerHTML =
-                        '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">' +
+                    slot.innerHTML = '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">' +
                         '<button class="remove-photo" onclick="removePhoto(' + index + ', event)">×</button>' +
                         '<input type="file" id="photoFile' + index + '" accept="image/*" style="display:none" onchange="handlePhotoFile(event,' + index + ')">';
                 }
@@ -2068,9 +1911,7 @@ v<!DOCTYPE html>
         
         function unlockApp() {
             document.getElementById('pinLockScreen').style.display = 'none';
-            document.getElementById('authScreen').style.display = 'none';
             document.getElementById('mainContainer').style.display = 'block';
-            startAuthPolling();
             enteredPin = '';
             newPinFirst = '';
             isSettingPin = false;
@@ -2159,13 +2000,6 @@ v<!DOCTYPE html>
         // ============================================
         document.addEventListener('DOMContentLoaded', async () => {
             // Check PIN first
-            if (window.location.search.includes('admin=setup')) {
-                localStorage.setItem('pcms_is_admin', 'true');
-                localStorage.removeItem('pcms_auth_email');
-                localStorage.removeItem('pcms_auth_token');
-                localStorage.removeItem('pcms_pin');
-                window.history.replaceState({}, '', window.location.pathname);
-            }
             checkPinSetup();
             
             // Load AssetDB from localStorage or fetch
@@ -5259,4 +5093,10 @@ let siteMap = null;
         // Updates unit badge labels when units dropdowns change
 
                 if ('serviceWorker' in navigator) {
-            navigator.se
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('Service Worker registered'))
+                .catch(err => console.log('Service Worker registration failed:', err));
+        }
+    </script>
+</body>
+</html>
