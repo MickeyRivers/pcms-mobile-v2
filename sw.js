@@ -1,8 +1,5 @@
-// PCMS Service Worker v68
-const CACHE_NAME = 'pcms-v69';
-
-// Never cache the HTML file - always get fresh from network
-const NEVER_CACHE = ['index.html', './', '/pcms-mobile-test/', '/pcms-mobile-test/index.html'];
+// PCMS Service Worker v70
+const CACHE_NAME = 'pcms-v87';
 
 self.addEventListener('install', function(event) {
     event.waitUntil(self.skipWaiting());
@@ -22,24 +19,22 @@ self.addEventListener('fetch', function(event) {
     // Skip external APIs
     if (url.includes('googleapis.com') || url.includes('script.google.com') ||
         url.includes('run.app') || url.includes('dropbox') ||
-        url.includes('ocr.space') || url.includes('fonts.g') ||
-        url.includes('cdn-cgi')) {
+        url.includes('ocr.space') || url.includes('cdn-cgi')) {
         return;
     }
 
-    // Always fetch HTML fresh from network
-    if (url.endsWith('.html') || url.endsWith('/') || url.includes('index.html') ||
-        url === self.location.origin + '/pcms-mobile-test/' ||
-        url === self.location.origin + '/pcms-mobile-test') {
+    // Always fetch HTML fresh - never serve from cache
+    if (event.request.mode === 'navigate' || url.endsWith('.html') ||
+        url.endsWith('/pcms-mobile-test/') || url.endsWith('/pcms-mobile-test')) {
         event.respondWith(
             fetch(event.request).catch(function() {
-                return caches.match(event.request);
+                return caches.match('./index.html');
             })
         );
         return;
     }
 
-    // Cache everything else
+    // Cache other assets
     event.respondWith(
         caches.match(event.request).then(function(cached) {
             if (cached) return cached;
