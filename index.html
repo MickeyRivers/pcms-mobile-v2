@@ -1180,7 +1180,7 @@
                         <div class="form-group" style="margin-top:12px;">
                             <label class="form-label">Elapsed Time</label>
                             <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-                                <div id="mechTimerDisplay" style="font-size:32px; font-weight:700; font-family:monospace; color:var(--navy); min-width:110px;">00:00</div>
+                                <div id="mechTimerDisplay" style="font-size:28px; font-weight:700; font-family:monospace; color:var(--navy); min-width:140px;">00:00.00</div>
                                 <div style="display:flex; flex-direction:column; gap:6px; flex:1;">
                                     <button id="mechTimerStartBtn" onclick="mechTimerStart()" style="padding:10px; background:var(--teal); color:white; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer;">▶ Start</button>
                                     <button id="mechTimerStopBtn" onclick="mechTimerStop()" style="padding:10px; background:#e53e3e; color:white; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; display:none;">⏹ Stop</button>
@@ -1188,7 +1188,22 @@
                                 </div>
                             </div>
                             <div style="font-size:11px; color:var(--gray-500);">Or enter time manually (minutes):</div>
-                            <input type="number" step="0.1" min="0.1" class="form-input" id="mechTime" placeholder="e.g. 1.0" oninput="calcMechFlow()" style="margin-top:4px;">
+                            <select class="form-select" id="mechTime" onchange="calcMechFlow()" style="margin-top:4px;">
+                                <option value="0.25">15 seconds</option>
+                                <option value="0.5">30 seconds</option>
+                                <option value="0.75">45 seconds</option>
+                                <option value="1" selected>1 minute</option>
+                                <option value="1.5">1 min 30 sec</option>
+                                <option value="2">2 minutes</option>
+                                <option value="3">3 minutes</option>
+                                <option value="5">5 minutes</option>
+                                <option value="10">10 minutes</option>
+                                <option value="15">15 minutes</option>
+                                <option value="30">30 minutes</option>
+                                <option value="60">1 hour</option>
+                                <option value="custom">Custom...</option>
+                            </select>
+                            <input type="number" step="0.01" min="0.01" class="form-input" id="mechTimeCustom" placeholder="Minutes (e.g. 2.5)" oninput="calcMechFlow()" style="margin-top:4px;display:none;">
                         </div>
                         <div id="mechResult" style="display:none; background:linear-gradient(135deg,var(--teal),var(--teal-light)); border-radius:12px; padding:20px; margin-top:8px; text-align:center; color:white;">
                             <div style="font-size:13px; opacity:0.9; margin-bottom:4px;">Calculated Flow Rate</div>
@@ -1416,17 +1431,14 @@
             <div class="form-section">
                 <div class="form-section-title">📷 Photos</div>
                 <div class="photo-grid">
-                    <div class="photo-slot" id="photoSlot0">
+                    <div class="photo-slot" onclick="showPhotoOptions(0)">
                         <span class="add-icon">+</span>
-                        <input type="file" id="photoFile0" accept="image/*" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;" onchange="handlePhotoFile(event,0)">
                     </div>
-                    <div class="photo-slot" id="photoSlot1">
+                    <div class="photo-slot" onclick="showPhotoOptions(1)">
                         <span class="add-icon">+</span>
-                        <input type="file" id="photoFile1" accept="image/*" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;" onchange="handlePhotoFile(event,1)">
                     </div>
-                    <div class="photo-slot" id="photoSlot2">
+                    <div class="photo-slot" onclick="showPhotoOptions(2)">
                         <span class="add-icon">+</span>
-                        <input type="file" id="photoFile2" accept="image/*" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;" onchange="handlePhotoFile(event,2)">
                     </div>
                 </div>
                 <p class="form-hint">Tap to capture or upload photos</p>
@@ -1723,6 +1735,54 @@
                 <div style="font-weight:600; color:var(--gray-700); margin-bottom:6px;">📐 Equation Reference</div>
                 <div id="fcEquationRef">Select a device to see the equation used.</div>
             </div>
+            <!-- Pipe Flow Calculator -->
+            <div class="form-section" style="margin-top:16px;">
+                <div style="font-weight:600;color:var(--navy);margin-bottom:12px;font-size:15px;">🔵 Closed Pipe Flow Rate</div>
+                <div class="form-group">
+                    <label class="form-label">Standard Pipe Size <span style="color:var(--gray-400);font-size:11px;">auto-fills OD & wall</span></label>
+                    <select class="form-select" id="calcPipeSize" onchange="pipeSelectChanged()">
+                        <option value="">Select size or enter manually below</option>
+                        <option value="4.500|0.237">4"  — OD 4.500", Wall 0.237"</option>
+                        <option value="5.563|0.258">5"  — OD 5.563", Wall 0.258"</option>
+                        <option value="6.625|0.280">6"  — OD 6.625", Wall 0.280"</option>
+                        <option value="8.625|0.322">8"  — OD 8.625", Wall 0.322"</option>
+                        <option value="10.750|0.365">10" — OD 10.750", Wall 0.365"</option>
+                        <option value="12.750|0.406">12" — OD 12.750", Wall 0.406"</option>
+                        <option value="14.000|0.437">14" — OD 14.000", Wall 0.437"</option>
+                        <option value="16.000|0.500">16" — OD 16.000", Wall 0.500"</option>
+                        <option value="18.000|0.562">18" — OD 18.000", Wall 0.562"</option>
+                        <option value="20.000|0.594">20" — OD 20.000", Wall 0.594"</option>
+                        <option value="24.000|0.688">24" — OD 24.000", Wall 0.688"</option>
+                        <option value="30.000|0.750">30" — OD 30.000", Wall 0.750"</option>
+                        <option value="36.000|0.750">36" — OD 36.000", Wall 0.750"</option>
+                        <option value="42.000|0.750">42" — OD 42.000", Wall 0.750"</option>
+                        <option value="48.000|0.750">48" — OD 48.000", Wall 0.750"</option>
+                        <option value="54.000|0.750">54" — OD 54.000", Wall 0.750"</option>
+                        <option value="60.000|0.750">60" — OD 60.000", Wall 0.750"</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Pipe O.D. (inches)</label>
+                    <input type="number" step="0.001" class="form-input" id="calcDiameter" placeholder="e.g. 6.625" oninput="calcPipeFlow()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Wall Thickness (inches)</label>
+                    <input type="number" step="0.001" class="form-input" id="calcWallThick" placeholder="e.g. 0.280" oninput="calcPipeFlow()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Velocity (ft/s)</label>
+                    <input type="number" step="0.01" class="form-input" id="calcVelocity" placeholder="e.g. 3.5" oninput="calcPipeFlow()">
+                </div>
+                <div id="pipeFlowResult" style="padding:16px;background:var(--navy);color:white;border-radius:12px;display:none;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                        <div><div style="font-size:11px;color:var(--gray-400);">GPM</div><div id="pipeGPM" style="font-size:22px;font-weight:700;"></div></div>
+                        <div><div style="font-size:11px;color:var(--gray-400);">MGD</div><div id="pipeMGD" style="font-size:22px;font-weight:700;"></div></div>
+                        <div><div style="font-size:11px;color:var(--gray-400);">CFS</div><div id="pipeCFS" style="font-size:22px;font-weight:700;"></div></div>
+                    </div>
+                    <div id="pipeArea" style="font-size:11px;color:var(--gray-400);"></div>
+                </div>
+            </div>
+
             <div class="bottom-spacer"></div>
         </section>
 
@@ -1745,7 +1805,6 @@
 
     <input type="file" id="photoInput" accept="image/*" style="display:none">
     <input type="file" id="photoInputCamera" accept="image/*" capture="environment" style="display:none">
-    <input type="file" id="photoInputCamera" accept="image/*" capture="environment" style="display:none">
     <canvas id="scanCanvas" style="display:none"></canvas>
 
     <script>
@@ -1765,7 +1824,7 @@
         let isSettingPin = false;
         let newPinFirst = '';
         let pendingResetCode = '';
-        const RESET_CODE_URL = 'https://script.google.com/macros/s/AKfycbxb8leTGeV4CfMpEp-7aDDJ4GFzs27PxCSDVabEwU6mbM0uyUWhMSBXvbpREXuRfA7RZw/exec';
+        const RESET_CODE_URL = 'https://script.google.com/macros/s/AKfycbxTFkWJbYjmtaLWp98SK2YoDZi9Qlf9n3aT6lu-TyOC8epKwOh_mHnDmpblGHO84552xw/exec';
 
         // ============================================
         // PIN SECURITY
@@ -1804,23 +1863,6 @@
             }
         }
         
-        function handlePhotoFile(event, index) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                photos[index] = e.target.result;
-                const slot = document.getElementById('photoSlot' + index);
-                if (slot) {
-                    slot.innerHTML = '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">' +
-                        '<button class="remove-photo" onclick="removePhoto(' + index + ', event)">×</button>' +
-                        '<input type="file" id="photoFile' + index + '" accept="image/*" style="display:none" onchange="handlePhotoFile(event,' + index + ')">';
-                }
-            };
-            reader.readAsDataURL(file);
-            event.target.value = '';
-        }
-
         function saveRecoveryEmail() {
             const email = document.getElementById('recoveryEmail').value.trim();
             if (!email || !email.includes('@')) {
@@ -2031,13 +2073,14 @@
         // ASSET DATABASE
         // ============================================
         async function loadAssetDB() {
-            const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbxb8leTGeV4CfMpEp-7aDDJ4GFzs27PxCSDVabEwU6mbM0uyUWhMSBXvbpREXuRfA7RZw/exec';
+            const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbxTFkWJbYjmtaLWp98SK2YoDZi9Qlf9n3aT6lu-TyOC8epKwOh_mHnDmpblGHO84552xw/exec';
             
             // Try to fetch fresh data from Google Sheets
             try {
                 const response = await fetch(ASSETDB_URL);
                 if (response.ok) {
-                    assetDB = await response.json();
+                    const result = await response.json();
+                    assetDB = result.data || result;
                     localStorage.setItem('assetDB', JSON.stringify(assetDB));
                     localStorage.setItem('assetDB_updated', new Date().toISOString());
                     console.log(`Loaded ${assetDB.length} assets from Google Sheets`);
@@ -2059,7 +2102,7 @@
             try {
                 const response = await fetch('assetdb.json');
                 if (response.ok) {
-                    assetDB = await response.json();
+                    const _r = await response.json(); assetDB = _r.data || _r;
                     localStorage.setItem('assetDB', JSON.stringify(assetDB));
                     console.log(`Loaded ${assetDB.length} assets from file`);
                 }
@@ -2069,7 +2112,7 @@
         }
 
         async function loadTestHistory() {
-            const BASE_URL = 'https://script.google.com/macros/s/AKfycbxb8leTGeV4CfMpEp-7aDDJ4GFzs27PxCSDVabEwU6mbM0uyUWhMSBXvbpREXuRfA7RZw/exec';
+            const BASE_URL = 'https://script.google.com/macros/s/AKfycbxTFkWJbYjmtaLWp98SK2YoDZi9Qlf9n3aT6lu-TyOC8epKwOh_mHnDmpblGHO84552xw/exec';
 
             try {
                 // Fetch both Field Data and Test History tabs in parallel
@@ -2090,7 +2133,13 @@
                 }
 
                 if (combined.length > 0) {
-                    testHistory = combined;
+                    // Normalize field names — sheet returns 'Date Tested', app uses 'Date'
+                    testHistory = combined.map(function(r) {
+                        if (r['Date Tested'] && !r['Date']) r['Date'] = r['Date Tested'];
+                        if (r['Serial Number'] && !r['serialNumber']) r['serialNumber'] = r['Serial Number'];
+                        if (r['Tested By'] && !r['testedBy']) r['testedBy'] = r['Tested By'];
+                        return r;
+                    });
                     localStorage.setItem('testHistory', JSON.stringify(testHistory));
                     console.log(`Loaded ${testHistory.length} history records (Field Data + Test History)`);
                     refreshMapIfActive();
@@ -2211,6 +2260,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         let allCustomerStats = [];
         
         function initTracker() {
+            if (!Array.isArray(assetDB) || assetDB.length === 0) return;
             // Get unique customers from AssetDB
             const customers = [...new Set(assetDB.map(a => a['Customer']).filter(c => c))].sort();
             
@@ -3625,7 +3675,7 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
                 <div style="background:white;width:100%;max-width:400px;border-radius:16px 16px 0 0;padding:16px;padding-bottom:32px;">
                     <div style="text-align:center;margin-bottom:16px;font-weight:600;color:#333;">Add Photo</div>
                     <button onclick="takePhoto()" style="width:100%;padding:14px;margin-bottom:8px;background:var(--gold);border:none;border-radius:8px;font-size:16px;font-weight:500;cursor:pointer;">📷 Take Photo</button>
-                    <button onclick="chooseFromGallery()" style="width:100%;padding:14px;margin-bottom:8px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:16px;font-weight:500;cursor:pointer;">🖼️ Choose from Gallery</button>
+                    <button onclick="chooseFromGallery()" style="width:100%;padding:14px;margin-bottom:8px;background:#1a2e4a;color:white;border:none;border-radius:8px;font-size:16px;font-weight:500;cursor:pointer;">🖼️ Choose from Gallery</button>
                     <button onclick="closePhotoDialog()" style="width:100%;padding:14px;background:#eee;border:none;border-radius:8px;font-size:16px;cursor:pointer;">Cancel</button>
                 </div>
             `;
@@ -4128,8 +4178,8 @@ GPS: ${record['GPS Coordinates'] || 'N/A'}
         }
 
         const CLOUD_FUNCTION_URL = 'https://generate-certificate-test2-980517620937.us-central1.run.app';
-        const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxb8leTGeV4CfMpEp-7aDDJ4GFzs27PxCSDVabEwU6mbM0uyUWhMSBXvbpREXuRfA7RZw/exec';
-        const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbxb8leTGeV4CfMpEp-7aDDJ4GFzs27PxCSDVabEwU6mbM0uyUWhMSBXvbpREXuRfA7RZw/exec';
+        const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxTFkWJbYjmtaLWp98SK2YoDZi9Qlf9n3aT6lu-TyOC8epKwOh_mHnDmpblGHO84552xw/exec';
+        const ASSETDB_URL = 'https://script.google.com/macros/s/AKfycbxTFkWJbYjmtaLWp98SK2YoDZi9Qlf9n3aT6lu-TyOC8epKwOh_mHnDmpblGHO84552xw/exec';
 
         async function syncPending() {
             if (pendingTests.length === 0) {
@@ -4912,7 +4962,7 @@ let siteMap = null;
         // ============================================
         // ── Mechanical Meter Timer ───────────────────────────────────────────────
         let mechTimerInterval = null;
-        let mechTimerSeconds  = 0;
+        let mechTimerCs       = 0;  // centiseconds (1/100 sec)
         let mechTimerRunning  = false;
 
         function mechTimerStart() {
@@ -4922,11 +4972,13 @@ let siteMap = null;
             document.getElementById('mechTimerStopBtn').style.display  = 'block';
             document.getElementById('mechTimerResetBtn').style.display = 'none';
             mechTimerInterval = setInterval(() => {
-                mechTimerSeconds++;
-                const m = String(Math.floor(mechTimerSeconds / 60)).padStart(2, '0');
-                const s = String(mechTimerSeconds % 60).padStart(2, '0');
-                document.getElementById('mechTimerDisplay').textContent = m + ':' + s;
-            }, 1000);
+                mechTimerCs++;
+                const totalSec = Math.floor(mechTimerCs / 100);
+                const m  = String(Math.floor(totalSec / 60)).padStart(2, '0');
+                const s  = String(totalSec % 60).padStart(2, '0');
+                const cs = String(mechTimerCs % 100).padStart(2, '0');
+                document.getElementById('mechTimerDisplay').textContent = m + ':' + s + '.' + cs;
+            }, 10);
         }
 
         function mechTimerStop() {
@@ -4937,16 +4989,17 @@ let siteMap = null;
             document.getElementById('mechTimerStartBtn').style.display = 'block';
             document.getElementById('mechTimerResetBtn').style.display = 'block';
             // Auto-fill elapsed time in minutes and calculate
-            const minutes = mechTimerSeconds / 60;
-            document.getElementById('mechTime').value = minutes.toFixed(4);
+            const minutes = mechTimerCs / 6000;
+            const selEl = document.getElementById('mechTime');
+            if (selEl.tagName === 'SELECT') { selEl.value = 'custom'; document.getElementById('mechTimeCustom').style.display='block'; document.getElementById('mechTimeCustom').value = minutes.toFixed(4); } else { selEl.value = minutes.toFixed(4); }
             calcMechFlow();
         }
 
         function mechTimerReset() {
             clearInterval(mechTimerInterval);
             mechTimerRunning  = false;
-            mechTimerSeconds  = 0;
-            document.getElementById('mechTimerDisplay').textContent    = '00:00';
+            mechTimerCs = 0;
+            document.getElementById('mechTimerDisplay').textContent    = '00:00.00';
             document.getElementById('mechTimerStartBtn').style.display = 'block';
             document.getElementById('mechTimerStopBtn').style.display  = 'none';
             document.getElementById('mechTimerResetBtn').style.display = 'none';
@@ -4966,6 +5019,12 @@ let siteMap = null;
         }
 
         function calcMechFlow() {
+            // Handle custom time input visibility
+            const timeEl = document.getElementById('mechTime');
+            const customEl = document.getElementById('mechTimeCustom');
+            if (timeEl && customEl) {
+                customEl.style.display = timeEl.value === 'custom' ? 'block' : 'none';
+            }
             const start   = parseFloat(document.getElementById('mechStart').value);
             const end     = parseFloat(document.getElementById('mechEnd').value);
             const minutes = parseFloat(document.getElementById('mechTime').value);
@@ -4982,8 +5041,8 @@ let siteMap = null;
             document.getElementById('mechGPM').textContent = gpm.toFixed(2);
             document.getElementById('mechMGD').textContent = mgd.toFixed(4);
             document.getElementById('mechGPH').textContent = Math.round(gph).toLocaleString();
-            const mStr = mechTimerSeconds > 0
-                ? Math.floor(mechTimerSeconds/60)+'m '+( mechTimerSeconds%60)+'s'
+            const mStr = mechTimerCs > 0
+                ? Math.floor(mechTimerCs/6000)+'m '+(Math.floor(mechTimerCs/100)%60)+'.'+(mechTimerCs%100).toString().padStart(2,'0')+'s'
                 : minutes + ' min';
             document.getElementById('mechCalcDetail').textContent =
                 '('+end+' − '+start+') × '+mult.toLocaleString()+' gal = '+gallons.toFixed(2)+' gal ÷ '+mStr;
